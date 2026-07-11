@@ -89,7 +89,7 @@ document.getElementById('btn-save-current').addEventListener('click', async () =
 // ====== 3.4 打开独立窗口按钮 ======
 function setupOpenWindowButton() {
     document.getElementById('btn-open-window').addEventListener('click', async () => {
-        const url = chrome.runtime.getURL('html/popup/index.html')
+        const url = chrome.runtime.getURL('src/html/popup/index.html')
         await chrome.windows.create({
             url,
             type: 'popup',

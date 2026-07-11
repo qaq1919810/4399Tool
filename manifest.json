@@ -5,7 +5,7 @@
   "description": "4399",
 
   "action": {
-    "default_popup": "./html/popup/index.html"
+    "default_popup": "src/html/popup/index.html"
   },
 
   "permissions": [

@@ -1,3 +1,4 @@
 dist/
 .idea/
 secret/
+node_modules/

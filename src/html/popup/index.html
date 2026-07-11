@@ -1,111 +1,355 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <title>4399 多账号管家</title>
-    <style>
-        /* ==================== 基础样式（保持原样，服务于 Popup 窄屏） ==================== */
-        body { width: 360px; font-family: sans-serif; margin: 0; padding: 15px; background: #f5f7f9; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        h2 { margin: 0; font-size: 18px; color: #333; }
-        .header-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
-        .btn-icon { background: none; border: 1px solid #ccc; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 14px; }
-        .btn-icon:hover { background: #eee; }
-        .btn-danger { color: #f44336; border-color: #f44336; }
-        .btn-danger:hover { background: #ffebee; }
-        .btn-save { width: 100%; background: #ea4c89; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 16px; cursor: pointer; font-weight: bold; }
-        .btn-save:hover { background: #f082ac; }
-        .btn-refresh-all { width: 100%; background: #9C27B0; color: white; border: none; padding: 10px; border-radius: 8px; font-size: 14px; cursor: pointer; margin-top: 8px; }
-        .btn-refresh-all:hover { background: #7B1FA2; }
-        .btn-refresh-all:disabled { background: #ccc; cursor: not-allowed; }
-        .account-list { margin-top: 15px; display: flex; flex-direction: column; gap: 10px; }
-        .account-card { background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border: 1px solid #eaeaea; box-sizing: border-box; }
-        .avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid #eee; }
-        .info { flex: 1; overflow: hidden; }
-        .info h4 { margin: 0 0 4px 0; font-size: 15px; color: #333; display: flex; align-items: center; justify-content: space-between; }
-        .info p { margin: 0; font-size: 12px; color: #666; word-wrap: break-word; overflow-wrap: break-word; }
-        .badge-auth { background: #e8f5e9; color: #4caf50; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: normal;}
-        .badge-unauth { background: #ffebee; color: #f44336; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: normal;}
-        .btn-switch { background: #2196F3; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; white-space: nowrap; }
-        .btn-switch:hover { background: #1976D2; }
-        .btn-switch:disabled { background: #ccc; cursor: not-allowed; }
-        .btn-edit { background: #FF9800; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; white-space: nowrap; }
-        .btn-edit:hover { background: #F57C00; }
-        .btn-refresh { background: #607D8B; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; white-space: nowrap; }
-        .btn-refresh:hover { background: #455A64; }
-        .btn-refresh:disabled { background: #ccc; cursor: not-allowed; }
-        .btn-delete { background: #f44336; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; white-space: nowrap; }
-        .btn-delete:hover { background: #d32f2f; }
-        .btn-group { display: flex; flex-direction: column; gap: 6px; }
-        .edit-form { width: 100%; padding: 10px; margin-top: 10px; background: #f9f9f9; border-radius: 8px; box-sizing: border-box; }
-        .edit-row { display: flex; align-items: center; margin-bottom: 8px; }
-        .edit-row label { width: 50px; font-size: 12px; color: #666; flex-shrink: 0; }
-        .edit-row input, .edit-row select { flex: 1; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; }
-        .edit-row input::placeholder { color: #aaa; }
-        .btn-save-edit { width: 100%; background: #4CAF50; color: white; border: none; padding: 8px; border-radius: 4px; font-size: 13px; cursor: pointer; margin-top: 4px; }
-        .btn-save-edit:hover { background: #388E3C; }
-        .btn-save-edit:disabled { background: #ccc; cursor: not-allowed; }
-
-        /* ==================== 响应式媒体查询（当页面变宽时自动激活） ==================== */
-        @media (min-width: 480px) {
+    <head>
+        <meta charset="UTF-8">
+        <title>4399 多账号管家</title>
+        <style>
+            /* ==================== 基础样式（保持原样，服务于 Popup 窄屏） ==================== */
             body {
-                width: auto;                  /* 解除 360px 限制 */
-                max-width: 1200px;            /* 限制最大全屏宽度，防止拉得太稀碎 */
-                margin: 0 auto;               /* 宽屏下居中显示 */
-                padding: 24px;
-                display: grid;                /* 利用网格重新编排宽屏布局 */
-                grid-template-columns: 1fr 1fr; /* 划分为左右两列 */
-                column-gap: 16px;
-                row-gap: 12px;
+                width: 360px;
+                font-family: sans-serif;
+                margin: 0;
+                padding: 15px;
+                background: #f5f7f9;
             }
 
             .header {
-                grid-column: span 2;          /* 头部标头独占一行 */
-                margin-bottom: 5px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 10px;
             }
 
-            /* 让两个原本通栏的大按钮并排平铺，并且高度和字号对齐 */
-            .btn-save {
-                grid-column: 1;               /* 占据左边列 */
+            h2 {
                 margin: 0;
-                padding: 14px;
+                font-size: 18px;
+                color: #333;
             }
-            .btn-refresh-all {
-                grid-column: 2;               /* 占据右边列 */
-                margin: 0;
-                padding: 14px;
-                font-size: 16px;              /* 宽屏下字号与保存按钮对齐 */
+
+            .header-btns {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 4px;
+            }
+
+            .btn-icon {
+                background: none;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                padding: 4px 8px;
+                cursor: pointer;
+                font-size: 14px;
+            }
+
+            .btn-icon:hover {
+                background: #eee;
+            }
+
+            .btn-danger {
+                color: #f44336;
+                border-color: #f44336;
+            }
+
+            .btn-danger:hover {
+                background: #ffebee;
+            }
+
+            .btn-save {
+                width: 100%;
+                background: #ea4c89;
+                color: white;
+                border: none;
+                padding: 12px;
+                border-radius: 8px;
+                font-size: 16px;
+                cursor: pointer;
                 font-weight: bold;
             }
 
-            /* 核心：账号列表由纵向排列变为多列瀑布流/网格自适应 */
+            .btn-save:hover {
+                background: #f082ac;
+            }
+
+            .btn-refresh-all {
+                width: 100%;
+                background: #9C27B0;
+                color: white;
+                border: none;
+                padding: 10px;
+                border-radius: 8px;
+                font-size: 14px;
+                cursor: pointer;
+                margin-top: 8px;
+            }
+
+            .btn-refresh-all:hover {
+                background: #7B1FA2;
+            }
+
+            .btn-refresh-all:disabled {
+                background: #ccc;
+                cursor: not-allowed;
+            }
+
             .account-list {
-                grid-column: span 2;          /* 列表独占下方区域 */
-                margin-top: 10px;
-                display: grid;
-                /* 只要空间够，就会自动横向一行排开多个卡片，每个卡片宽度在 350px~1fr 之间弹性伸缩 */
-                grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-                gap: 16px;
+                margin-top: 15px;
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
             }
 
             .account-card {
-                margin: 0;                    /* 清除旧间距，统一交给 grid 缝隙控制 */
-                align-items: flex-start;      /* 宽屏下顶部对齐显得更整洁 */
+                background: white;
+                padding: 10px;
+                border-radius: 8px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                flex-wrap: wrap;
+                border: 1px solid #eaeaea;
+                box-sizing: border-box;
             }
-        }
-    </style>
-</head>
-<body>
-<div class="header">
-    <h2>🎮 4399 账号管家</h2>
-    <button id="btn-open-window" class="btn-icon" title="独立窗口">⧉</button>
-</div>
-<button id="btn-save-current" class="btn-save">正在检测当前账号...</button>
-<button id="btn-refresh-all" class="btn-refresh-all">全部刷新</button>
-<div id="account-list" class="account-list">
-    <!-- 这里动态生成的卡片在宽屏下会自动并排 -->
-</div>
 
-<script type="module" src="index.js"></script>
-</body>
+            .avatar {
+                width: 48px;
+                height: 48px;
+                border-radius: 50%;
+                object-fit: cover;
+                border: 2px solid #eee;
+            }
+
+            .info {
+                flex: 1;
+                overflow: hidden;
+            }
+
+            .info h4 {
+                margin: 0 0 4px 0;
+                font-size: 15px;
+                color: #333;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+
+            .info p {
+                margin: 0;
+                font-size: 12px;
+                color: #666;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+            }
+
+            .badge-auth {
+                background: #e8f5e9;
+                color: #4caf50;
+                padding: 2px 6px;
+                border-radius: 4px;
+                font-size: 10px;
+                font-weight: normal;
+            }
+
+            .badge-unauth {
+                background: #ffebee;
+                color: #f44336;
+                padding: 2px 6px;
+                border-radius: 4px;
+                font-size: 10px;
+                font-weight: normal;
+            }
+
+            .btn-switch {
+                background: #2196F3;
+                color: white;
+                border: none;
+                padding: 6px 12px;
+                border-radius: 4px;
+                font-size: 12px;
+                cursor: pointer;
+                white-space: nowrap;
+            }
+
+            .btn-switch:hover {
+                background: #1976D2;
+            }
+
+            .btn-switch:disabled {
+                background: #ccc;
+                cursor: not-allowed;
+            }
+
+            .btn-edit {
+                background: #FF9800;
+                color: white;
+                border: none;
+                padding: 6px 12px;
+                border-radius: 4px;
+                font-size: 12px;
+                cursor: pointer;
+                white-space: nowrap;
+            }
+
+            .btn-edit:hover {
+                background: #F57C00;
+            }
+
+            .btn-refresh {
+                background: #607D8B;
+                color: white;
+                border: none;
+                padding: 6px 12px;
+                border-radius: 4px;
+                font-size: 12px;
+                cursor: pointer;
+                white-space: nowrap;
+            }
+
+            .btn-refresh:hover {
+                background: #455A64;
+            }
+
+            .btn-refresh:disabled {
+                background: #ccc;
+                cursor: not-allowed;
+            }
+
+            .btn-delete {
+                background: #f44336;
+                color: white;
+                border: none;
+                padding: 6px 12px;
+                border-radius: 4px;
+                font-size: 12px;
+                cursor: pointer;
+                white-space: nowrap;
+            }
+
+            .btn-delete:hover {
+                background: #d32f2f;
+            }
+
+            .btn-group {
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+            }
+
+            .edit-form {
+                width: 100%;
+                padding: 10px;
+                margin-top: 10px;
+                background: #f9f9f9;
+                border-radius: 8px;
+                box-sizing: border-box;
+            }
+
+            .edit-row {
+                display: flex;
+                align-items: center;
+                margin-bottom: 8px;
+            }
+
+            .edit-row label {
+                width: 50px;
+                font-size: 12px;
+                color: #666;
+                flex-shrink: 0;
+            }
+
+            .edit-row input, .edit-row select {
+                flex: 1;
+                padding: 6px 8px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                font-size: 12px;
+            }
+
+            .edit-row input::placeholder {
+                color: #aaa;
+            }
+
+            .btn-save-edit {
+                width: 100%;
+                background: #4CAF50;
+                color: white;
+                border: none;
+                padding: 8px;
+                border-radius: 4px;
+                font-size: 13px;
+                cursor: pointer;
+                margin-top: 4px;
+            }
+
+            .btn-save-edit:hover {
+                background: #388E3C;
+            }
+
+            .btn-save-edit:disabled {
+                background: #ccc;
+                cursor: not-allowed;
+            }
+
+            /* ==================== 响应式媒体查询（当页面变宽时自动激活） ==================== */
+            @media (min-width: 480px) {
+                body {
+                    width: auto; /* 解除 360px 限制 */
+                    max-width: 1200px; /* 限制最大全屏宽度，防止拉得太稀碎 */
+                    margin: 0 auto; /* 宽屏下居中显示 */
+                    padding: 24px;
+                    display: grid; /* 利用网格重新编排宽屏布局 */
+                    grid-template-columns: 1fr 1fr; /* 划分为左右两列 */
+                    column-gap: 16px;
+                    row-gap: 12px;
+                }
+
+                .header {
+                    grid-column: span 2; /* 头部标头独占一行 */
+                    margin-bottom: 5px;
+                }
+
+                /* 让两个原本通栏的大按钮并排平铺，并且高度和字号对齐 */
+                .btn-save {
+                    grid-column: 1; /* 占据左边列 */
+                    margin: 0;
+                    padding: 14px;
+                }
+
+                .btn-refresh-all {
+                    grid-column: 2; /* 占据右边列 */
+                    margin: 0;
+                    padding: 14px;
+                    font-size: 16px; /* 宽屏下字号与保存按钮对齐 */
+                    font-weight: bold;
+                }
+
+                /* 核心：账号列表由纵向排列变为多列瀑布流/网格自适应 */
+                .account-list {
+                    grid-column: span 2; /* 列表独占下方区域 */
+                    margin-top: 10px;
+                    display: grid;
+                    /* 只要空间够，就会自动横向一行排开多个卡片，每个卡片宽度在 350px~1fr 之间弹性伸缩 */
+                    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+                    gap: 16px;
+                }
+
+                .account-card {
+                    margin: 0; /* 清除旧间距，统一交给 grid 缝隙控制 */
+                    align-items: flex-start; /* 宽屏下顶部对齐显得更整洁 */
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h2>🎮 4399 账号管家</h2>
+            <button id="btn-open-window" class="btn-icon" title="独立窗口">⧉</button>
+        </div>
+        <button id="btn-save-current" class="btn-save">正在检测当前账号...</button>
+        <button id="btn-refresh-all" class="btn-refresh-all">全部刷新</button>
+        <div id="account-list" class="account-list">
+            <!-- 这里动态生成的卡片在宽屏下会自动并排 -->
+        </div>
+        <script type="module" src="index.mjs"></script>
+    </body>
 </html>
