@@ -287,9 +287,9 @@ async function renderAccountList() {
                 btn.disabled = true
                 btn.innerText = '保存中...'
 
-                const success = await modifyUserInfo(params, acc.cookies)
+                const result = await modifyUserInfo(params, acc.cookies)
 
-                if (success) {
+                if (result.success) {
                     alert('✅ 修改成功！')
                     // 更新本地存储
                     const storageWrapper = await chrome.storage.local.get('info')
@@ -300,7 +300,7 @@ async function renderAccountList() {
                     }
                     await renderAccountList()
                 } else {
-                    alert('❌ 修改失败')
+                    alert(`❌ ${result.message}\n\n${JSON.stringify(result.data, null, 2)}`)
                     btn.disabled = false
                     btn.innerText = '保存修改'
                 }

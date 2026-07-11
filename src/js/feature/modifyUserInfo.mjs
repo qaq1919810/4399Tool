@@ -130,10 +130,21 @@ async function sendModifyRequest(params, cookies = null) {
         if (!response.ok) throw new Error(`请求失败: ${response.status}`)
 
         const result = await response.json()
-        return result.state === true || result.ret === 'succ'
+
+        // 成功
+        if (result.state === true || result.ret === 'succ') {
+            return { success: true }
+        }
+
+        // 错误：直接返回 d 对象
+        return {
+            success: false,
+            message: result.e || '修改失败',
+            data: result.d || {}
+        }
     } catch (error) {
         console.error("[4399管家] 修改失败:", error)
-        return false
+        return { success: false, message: error.message || '网络错误' }
     }
 }
 
