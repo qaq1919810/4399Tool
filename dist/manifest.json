@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "4399",
+  "version": "0.0.3",
+  "description": "4399",
+  "action": {
+    "default_popup": "src/html/popup/index.html"
+  },
+  "permissions": [
+    "cookies",
+    "storage",
+    "unlimitedStorage",
+    "declarativeNetRequest",
+    "declarativeNetRequestWithHostAccess",
+    "notifications"
+  ],
+  "host_permissions": [
+    "*://*.4399.com/*",
+    "<all_urls>"
+  ]
+}

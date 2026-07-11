@@ -1,4 +1,4 @@
-dist/
+devDist/
 .idea/
 secret/
 node_modules/
