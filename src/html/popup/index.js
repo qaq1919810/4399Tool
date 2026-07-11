@@ -3,12 +3,14 @@ import { getCurrentUserAuth } from '../../js/feature/getCurrentUserAuth.mjs'
 import getUserInfo from '../../js/feature/getUserInfo.mjs'
 import { modifyUserInfo } from '../../js/feature/modifyUserInfo.mjs'
 import { shadowFetch } from '../../js/utils/shadowFetch.mjs'
+import { systemNotification } from '../../js/utils/notify.mjs'
 
 // ====== 1. 初始化，页面加载时执行 ======
 document.addEventListener('DOMContentLoaded', async () => {
     await renderAccountList()
     await checkCurrentLoginStatus()
     setupRefreshAllButton()
+    setupOpenWindowButton()
 })
 
 // ====== 2. 检查当前登录状态 ======
@@ -36,7 +38,7 @@ document.getElementById('btn-save-current').addEventListener('click', async () =
     try {
         const auth = await getCurrentUserAuth()
         if (!auth) {
-            alert("未检测到登录状态，请先在网页登录4399！")
+            await systemNotification("未检测到登录状态，请先在网页登录4399！")
             btn.innerText = "💾 保存/更新当前账号"
             btn.disabled = false
             return
@@ -44,7 +46,7 @@ document.getElementById('btn-save-current').addEventListener('click', async () =
 
         const userData = await getUserInfo(auth.puser)
         if (!userData) {
-            alert("获取用户信息失败！")
+            await systemNotification("获取用户信息失败！")
             btn.innerText = "💾 保存/更新当前账号"
             btn.disabled = false
             return
@@ -78,11 +80,24 @@ document.getElementById('btn-save-current').addEventListener('click', async () =
 
     } catch (error) {
         console.error("保存账号时发生错误:", error)
-        alert("抓取失败。")
+        await systemNotification("抓取失败。")
         btn.innerText = "保存失败，重试"
         btn.disabled = false
     }
 })
+
+// ====== 3.4 打开独立窗口按钮 ======
+function setupOpenWindowButton() {
+    document.getElementById('btn-open-window').addEventListener('click', async () => {
+        const url = chrome.runtime.getURL('html/popup/index.html')
+        await chrome.windows.create({
+            url,
+            type: 'popup',
+            width: 400,
+            height: 600
+        })
+    })
+}
 
 // ====== 3.5 全部刷新按钮 ======
 function setupRefreshAllButton() {
@@ -96,7 +111,7 @@ function setupRefreshAllButton() {
         const pusers = Object.keys(storageInfo)
 
         if (pusers.length === 0) {
-            alert('暂无保存的账号')
+            await systemNotification('暂无保存的账号')
             btn.disabled = false
             btn.innerText = '全部刷新'
             return
@@ -114,7 +129,7 @@ function setupRefreshAllButton() {
         }
 
         await chrome.storage.local.set({ info: storageInfo })
-        alert(`✅ 刷新完成，成功 ${successCount}/${pusers.length} 个账号`)
+        await systemNotification(`✅ 刷新完成，成功 ${successCount}/${pusers.length} 个账号`)
         await renderAccountList()
 
         btn.disabled = false
@@ -173,6 +188,7 @@ async function renderAccountList() {
         <button class="btn-switch" data-puser="${acc.puser}">切换</button>
         <button class="btn-edit" data-puser="${acc.puser}">修改</button>
         <button class="btn-refresh" data-puser="${acc.puser}">刷新</button>
+        <button class="btn-delete" data-puser="${acc.puser}">删除</button>
       </div>
     `
 
@@ -192,9 +208,9 @@ async function renderAccountList() {
                         chrome.tabs.reload(currentTab.id)
                     }
                 })
-                alert(`🎉 成功切换到账号：${acc.nickname}！`)
+                await systemNotification(`🎉 成功切换到账号：${acc.nickname}！`)
             } else {
-                alert('❌ 切号失败。')
+                await systemNotification('❌ 切号失败。')
             }
 
             btn.disabled = false
@@ -214,13 +230,26 @@ async function renderAccountList() {
                 const storageInfo = storageWrapper.info || {}
                 storageInfo[acc.puser] = { ...storageInfo[acc.puser], ...userData }
                 await chrome.storage.local.set({ info: storageInfo })
-                alert(`✅ 账号 ${acc.nickname} 刷新成功！`)
+                await systemNotification(`✅ 账号 ${acc.nickname} 刷新成功！`)
                 await renderAccountList()
             } else {
-                alert('❌ 刷新失败')
+                await systemNotification('❌ 刷新失败')
                 btn.disabled = false
                 btn.innerText = '刷新'
             }
+        })
+
+        // 点击删除按钮
+        card.querySelector('.btn-delete').addEventListener('click', async (e) => {
+            e.stopPropagation()
+            if (!confirm(`确定要删除账号「${acc.nickname}」吗？`)) return
+
+            const storageWrapper = await chrome.storage.local.get('info')
+            const storageInfo = storageWrapper.info || {}
+            delete storageInfo[acc.puser]
+            await chrome.storage.local.set({ info: storageInfo })
+            await systemNotification(`✅ 已删除账号「${acc.nickname}」`)
+            await renderAccountList()
         })
 
         // 点击修改按钮
@@ -279,7 +308,7 @@ async function renderAccountList() {
                 })
 
                 if (Object.keys(params).length === 0) {
-                    alert('未输入任何修改内容')
+                    await systemNotification('未输入任何修改内容')
                     return
                 }
 
@@ -290,7 +319,7 @@ async function renderAccountList() {
                 const result = await modifyUserInfo(params, acc.cookies)
 
                 if (result.success) {
-                    alert('✅ 修改成功！')
+                    await systemNotification('✅ 修改成功！')
                     // 更新本地存储
                     const storageWrapper = await chrome.storage.local.get('info')
                     const storageInfo = storageWrapper.info || {}
@@ -300,7 +329,7 @@ async function renderAccountList() {
                     }
                     await renderAccountList()
                 } else {
-                    alert(`❌ ${result.message}\n\n${JSON.stringify(result.data, null, 2)}`)
+                    await systemNotification(`❌ ${result.message}\n\n${JSON.stringify(result.data, null, 2)}`)
                     btn.disabled = false
                     btn.innerText = '保存修改'
                 }

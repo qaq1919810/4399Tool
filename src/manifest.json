@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "4399",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "4399",
 
   "action": {
@@ -13,7 +13,8 @@
     "storage",
     "unlimitedStorage",
     "declarativeNetRequest",
-    "declarativeNetRequestWithHostAccess"
+    "declarativeNetRequestWithHostAccess",
+    "notifications"
   ],
 
   "host_permissions": [
