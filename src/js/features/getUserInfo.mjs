@@ -1,6 +1,6 @@
 // noinspection SpellCheckingInspection
 
-import { shadowFetch } from '../utils/shadowFetch.mjs'
+import { shadowFetch } from '#utils/shadowFetch.mjs'
 
 /**
  * 解析个人中心页面 HTML
@@ -12,18 +12,17 @@ async function fetchProfilePage(username, cookies = null) {
     if (!username) return null
 
     try {
-        const fetchOptions = { credentials: 'include' }
-
-        // 如果提供了 cookies，使用 shadowFetch 覆写
+        // 如果提供了 cookies，使用 shadowFetch 覆写，禁止浏览器自动附带 cookie
         if (cookies && cookies.length > 0) {
-            fetchOptions.headers = { 'cookie': cookies }
-            const response = await shadowFetch('https://u.4399.com/profile/', fetchOptions)
+            const response = await shadowFetch('https://u.4399.com/profile/', {
+                headers: { 'cookie': cookies }
+            })
             if (!response.ok) throw new Error(`请求失败: ${response.status}`)
             return await parseProfileHtml(username, await response.text())
         }
 
-        // 没有提供 cookies，使用普通 fetch
-        const response = await fetch('https://u.4399.com/profile/', fetchOptions)
+        // 没有提供 cookies，使用普通 fetch（携带当前登录账号 cookie）
+        const response = await fetch('https://u.4399.com/profile/', { credentials: 'include' })
         if (!response.ok) throw new Error(`请求失败: ${response.status}`)
         return await parseProfileHtml(username, await response.text())
     } catch (error) {

@@ -1,7 +1,7 @@
 import {defineConfig} from 'vite'
 import vue from '@vitejs/plugin-vue'
 import {crx} from '@crxjs/vite-plugin'
-import manifest from './manifest.json'
+import manifest from './manifest.mjs'
 
 // 核心引入：导入这两个自动引入工具
 import AutoImport from 'unplugin-auto-import/vite'

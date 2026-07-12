@@ -103,8 +103,8 @@
 <script setup>
 import {ref, onMounted} from 'vue'
 import {ElMessage} from 'element-plus'
-import {shadowFetch} from '../../js/utils/shadowFetch.mjs'
-import {modifyUserInfo} from '../../js/feature/modifyUserInfo.mjs'
+import {shadowFetch} from '#utils/shadowFetch.mjs'
+import {modifyUserInfo} from '#features/modifyUserInfo.mjs'
 
 const props = defineProps({
     user: Object,
@@ -245,11 +245,6 @@ async function handleSaveEdit() {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
-.account-card.selected {
-    border-color: #409eff;
-    background: #ecf5ff;
-}
-
 .card-checkbox {
     margin-top: 12px;
 }
@@ -312,11 +307,6 @@ async function handleSaveEdit() {
     font-size: 12px;
     color: #666;
     flex-shrink: 0;
-}
-
-.edit-row .el-input,
-.edit-row .el-select {
-    flex: 1;
 }
 
 .move-popover .move-title {

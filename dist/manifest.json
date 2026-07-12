@@ -3,9 +3,11 @@
   "name": "4399",
   "version": "0.0.3",
   "description": "4399",
-  "action": {
-    "default_popup": "src/html/popup/index.html"
+  "background": {
+    "service_worker": "service-worker-loader.js",
+    "type": "module"
   },
+  "action": {},
   "permissions": [
     "cookies",
     "storage",

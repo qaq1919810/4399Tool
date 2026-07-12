@@ -1,9 +1,9 @@
 // ====== 0. 导入获取用户信息的核心函数 ======
-import { getCurrentUserAuth } from '../../js/feature/getCurrentUserAuth.mjs'
-import getUserInfo from '../../js/feature/getUserInfo.mjs'
-import { modifyUserInfo } from '../../js/feature/modifyUserInfo.mjs'
-import { shadowFetch } from '../../js/utils/shadowFetch.mjs'
-import { systemNotification } from '../../js/utils/notify.mjs'
+import { getCurrentUserAuth } from '#/features/getCurrentUserAuth.mjs'
+import getUserInfo from '#/features/getUserInfo.mjs'
+import { modifyUserInfo } from '#/features/modifyUserInfo.mjs'
+import { shadowFetch } from '#/utils/shadowFetch.mjs'
+import { systemNotification } from '#/utils/notify.mjs'
 
 // ====== 1. 初始化，页面加载时执行 ======
 document.addEventListener('DOMContentLoaded', async () => {

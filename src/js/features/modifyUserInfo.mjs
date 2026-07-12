@@ -1,6 +1,6 @@
 // noinspection SpellCheckingInspection
 
-import { shadowFetch } from '../utils/shadowFetch.mjs'
+import { shadowFetch } from '#utils/shadowFetch.mjs'
 
 /**
  * 获取修改页面的 __HASH__
