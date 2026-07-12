@@ -1,38 +1,79 @@
 /**
+ * Chrome MV3 窗口调度与单方控制 SDK (无参数闭包直控版)
  */
-class WindowManager{
-    constructor() {
-        // [内部方法] 智能处理 URL
-        this._parseUrl = (url) => {
-            if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('chrome-extension://')) {
-                return url
-            }
-            return chrome.runtime.getURL(url)
+class WindowManager {
+    // 严格的现代规范：原生私有属性/方法必须在类最顶部声明
+    #enableLogger = false
+
+    // 原生私有日志方法
+    #log(action, detail) {
+        if (this.#enableLogger) {
+            console.log(`%c[WindowManagerSDK] ${action}`, 'color: #1a73e8; font-weight: bold;', detail)
         }
+    }
+
+    // 原生私有 URL 处理方法
+    #parseUrl(url) {
+        if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('chrome-extension://')) {
+            return url
+        }
+        return chrome.runtime.getURL(url)
+    }
+
+    // 私有轮询器：确保能精准拿到刚创建的插件窗口物理视图
+    #getTargetView(tabId, maxRetries = 20) {
+        return new Promise((resolve, reject) => {
+            let attempts = 0
+            const check = () => {
+                const views = chrome.extension.getViews({ tabId })
+                if (views.length > 0) {
+                    resolve(views[0])
+                } else {
+                    attempts++
+                    if (attempts >= maxRetries) {
+                        reject(new Error(`[超时] 无法获取 tabId: ${tabId} 的视图实例`))
+                    } else {
+                        setTimeout(check, 50) // 每 50ms 检查一次
+                    }
+                }
+            }
+            check()
+        })
+    }
+
+    constructor(config = {}) {
+        this.#enableLogger = !!config.logger
 
         /**
          * [核心] 构造单方控制手柄
-         * @param {number} windowId - 窗口物理 ID
-         * @param {number} tabId - 内部标签页 ID
          */
         this.getWindow = (windowId, tabId) => {
             if (!windowId || !tabId) return null
 
             return {
-                windowId: windowId,
-                tabId: tabId,
+                windowId,
+                tabId,
 
-                // 核心大招：单方执行代码（严格要求必须传递函数）
-                exec: async (func, args = []) => {
-                    return chrome.scripting.executeScript({
-                        target: {tabId: tabId},
-                        func: func,
-                        args: args
-                    })
+                // 核心大招：单方闭包直控，不再需要传递第二个参数数组
+                exec: async (func) => {
+                    this.#log('执行 exec (闭包直控模式)', { tabId, functionName: func.name || 'anonymous' })
+
+                    try {
+                        // 1. 获取目标窗口的物理 Window 实例
+                        const targetWindow = await this.#getTargetView(tabId)
+                        const targetDocument = targetWindow.document
+
+                        // 2. 直接执行函数，只注入目标窗体的 win 和 doc
+                        return func(targetWindow, targetDocument)
+                    } catch (error) {
+                        console.error('[WindowManagerSDK] exec 执行失败:', error)
+                        throw error
+                    }
                 },
 
                 // 销毁当前窗口
                 close: async () => {
+                    this.#log('执行 close', { windowId, tabId })
                     return chrome.windows.remove(windowId)
                 }
             }
@@ -43,9 +84,10 @@ class WindowManager{
      * 获取所有存活的 Popup 窗口实例
      */
     async getWindows() {
-        const winList = await chrome.windows.getAll({populate: true})
+        this.#log('读取 getWindows', '正在获取所有Popup窗口...')
+        const winList = await chrome.windows.getAll({ populate: true })
 
-        return winList
+        const instances = winList
             .filter(win => win.type === 'popup')
             .map(win => {
                 const tabId = win.tabs?.[0]?.id
@@ -57,18 +99,21 @@ class WindowManager{
                 return baseInstance
             })
             .filter(Boolean)
+
+        this.#log('读取 getWindows 完成', `成功获取到 ${instances.length} 个活跃实例`)
+        return instances
     }
 
     /**
      * 创建窗口并返回控制实例
      */
     async create(url, sizeConfig = '') {
-        const finalUrl = this._parseUrl(url)
+        const finalUrl = this.#parseUrl(url)
+        this.#log('准备 create 窗口', { url: finalUrl, sizeConfig })
 
         const options = {
             url: finalUrl,
-            type: 'popup',
-            populate: true
+            type: 'popup'
         }
 
         // 智能解析第二个参数
@@ -81,13 +126,13 @@ class WindowManager{
             if (sizeConfig.top) options.top = Number(sizeConfig.top)
         }
 
-        // 召唤窗口
         const newWindow = await chrome.windows.create(options)
+        const windowId = newWindow.id
+        const tabId = newWindow.tabs[0].id
 
-        // 返回操控手柄
-        return this.getWindow(newWindow.id, newWindow.tabs[0].id)
+        this.#log('窗口 create 成功', { windowId, tabId })
+        return this.getWindow(windowId, tabId)
     }
 }
 
-// 导出全局单例
-export const windowManager = new WindowManager()
+export default new WindowManager({ logger: true })

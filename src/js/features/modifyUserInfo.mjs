@@ -132,7 +132,7 @@ async function sendModifyRequest(params, cookies = null) {
         const result = await response.json()
 
         // 成功
-        if (result.state === true || result.ret === 'succ') {
+        if (result.state === true || result.ret === 'succ' || result.c === 200) {
             return { success: true }
         }
 

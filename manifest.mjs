@@ -22,11 +22,16 @@ export default {
         "unlimitedStorage",
         "declarativeNetRequest",
         "declarativeNetRequestWithHostAccess",
-        "notifications"
+        "notifications",
+        "scripting"
     ],
 
     host_permissions: [
-        "*://*.4399.com/*",
         "<all_urls>"
-    ]
+    ],
+
+    web_accessible_resources: [{
+        resources: ["src/html/popup/index.html", "src/html/popup/batch-edit.html"],
+        matches: ["<all_urls>"]
+    }]
 }

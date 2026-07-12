@@ -41,6 +41,7 @@
           </el-dropdown-menu>
         </template>
       </el-dropdown>
+      <el-button size="small" type="warning" @click="batchEdit">批量修改</el-button>
       <el-button size="small" type="danger" @click="batchDelete">批量删除</el-button>
     </div>
 
@@ -251,6 +252,7 @@ import {
 } from '#features/folderManager.mjs'
 import {getCurrentUserAuth} from '#features/getCurrentUserAuth.mjs'
 import getUserInfo from '#features/getUserInfo.mjs'
+import windowManager from '#utils/windowManager.mjs'
 
 // ====== 状态 ======
 const loading = ref(true)
@@ -439,6 +441,24 @@ async function batchDelete() {
   ElMessage.success(`已删除 ${selectedUsers.value.length} 个账号`)
   selectedUsers.value = []
   await refreshData()
+}
+
+async function batchEdit() {
+  const wrapper = await chrome.storage.local.get('info')
+  const info = wrapper.info || {}
+  const selectedAccounts = selectedUsers.value.map(puser => info[puser]).filter(Boolean)
+
+  if (selectedAccounts.length === 0) {
+    ElMessage.warning('未找到选中的账号数据')
+    return
+  }
+
+  const handle = await windowManager.create('src/html/popup/batch-edit.html', {width: 500, height: 600})
+  if (handle) {
+    await handle.exec((win) => {
+      win.__BATCH_DATA__ = selectedAccounts
+    })
+  }
 }
 
 // ====== 文件夹操作 ======
