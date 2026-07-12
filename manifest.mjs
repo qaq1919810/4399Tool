@@ -4,6 +4,12 @@ export default {
     version: "0.0.3",
     description: "4399",
 
+    icons: {
+        "16": "src/assets/logo.png",
+        "48": "src/assets/logo.png",
+        "128": "src/assets/logo.png"
+    },
+
     background: {
         service_worker: "src/background.mjs"
     },

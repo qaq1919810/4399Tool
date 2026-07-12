@@ -33,6 +33,15 @@ export default defineConfig(({command}) => {
             outDir: isDev ? 'devDist' : 'dist',
             emptyOutDir: true,
             sourcemap: 'inline',
+            rollupOptions: {
+                input: {
+                    // 1. 保持你原有的 background 或者是 main 入口
+                    // main: resolve(__dirname, 'index.html'),
+
+                    // 2. 必须明确加上你的 popup 页面入口！
+                    popup: 'src/html/popup/index.html'
+                }
+            }
         },
     }
 })
