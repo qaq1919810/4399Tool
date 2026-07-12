@@ -5,15 +5,15 @@
     "src": "../../../../../../@crx/manifest",
     "isEntry": true
   },
-  "__plugin-vue_export-helper-BDUxdIDs.css": {
-    "file": "assets/_plugin-vue_export-helper-BDUxdIDs.css",
-    "src": "__plugin-vue_export-helper-BDUxdIDs.css"
+  "_css-DQ3ViKUM.css": {
+    "file": "assets/css-DQ3ViKUM.css",
+    "src": "_css-DQ3ViKUM.css"
   },
-  "__plugin-vue_export-helper-ZPDlDDPt.js": {
-    "file": "assets/_plugin-vue_export-helper-ZPDlDDPt.js",
-    "name": "_plugin-vue_export-helper",
+  "_css-DZdEBjO-.js": {
+    "file": "assets/css-DZdEBjO-.js",
+    "name": "css",
     "css": [
-      "assets/_plugin-vue_export-helper-BDUxdIDs.css"
+      "assets/css-DQ3ViKUM.css"
     ]
   },
   "src/background.mjs": {
@@ -23,27 +23,27 @@
     "isEntry": true
   },
   "src/html/popup/batch-edit.html": {
-    "file": "assets/batch-edit-LWq9DWEC.js",
+    "file": "assets/batch-edit-DqAEySGo.js",
     "name": "batch-edit",
     "src": "src/html/popup/batch-edit.html",
     "isEntry": true,
     "imports": [
-      "__plugin-vue_export-helper-ZPDlDDPt.js"
+      "_css-DZdEBjO-.js"
     ],
     "css": [
-      "assets/batch-edit-DulhHrd4.css"
+      "assets/batch-edit-CCRCgB5L.css"
     ]
   },
   "src/html/popup/index.html": {
-    "file": "assets/index-4D8y15d5.js",
+    "file": "assets/index-CHCPKBi6.js",
     "name": "index",
     "src": "src/html/popup/index.html",
     "isEntry": true,
     "imports": [
-      "__plugin-vue_export-helper-ZPDlDDPt.js"
+      "_css-DZdEBjO-.js"
     ],
     "css": [
-      "assets/index-DR1acXqS.css"
+      "assets/index-DP-S7ss5.css"
     ]
   }
 }

@@ -14,9 +14,7 @@ async function getHash(cookies = null) {
             fetchOptions.headers = { 'cookie': cookies }
         }
 
-        const response = cookies
-            ? await shadowFetch('https://u.4399.com/profile/modify.html', fetchOptions)
-            : await fetch('https://u.4399.com/profile/modify.html', fetchOptions)
+        const response = await shadowFetch('https://u.4399.com/profile/modify.html', fetchOptions)
 
         if (!response.ok) throw new Error(`请求失败: ${response.status}`)
 
@@ -41,9 +39,7 @@ async function getCurrentProfile(cookies = null) {
             fetchOptions.headers = { 'cookie': cookies }
         }
 
-        const response = cookies
-            ? await shadowFetch('https://u.4399.com/profile/modify.html', fetchOptions)
-            : await fetch('https://u.4399.com/profile/modify.html', fetchOptions)
+        const response = await shadowFetch('https://u.4399.com/profile/modify.html', fetchOptions)
         if (!response.ok) throw new Error(`请求失败: ${response.status}`)
 
         const html = await response.text()
@@ -119,13 +115,11 @@ async function sendModifyRequest(params, cookies = null) {
             referrer: 'https://u.4399.com/profile/modify.html'
         }
 
-        let response
         if (cookies && cookies.length > 0) {
             fetchOptions.headers['cookie'] = cookies
-            response = await shadowFetch('https://u.4399.com/profile/modify-save.html', fetchOptions)
-        } else {
-            response = await fetch('https://u.4399.com/profile/modify-save.html', fetchOptions)
         }
+
+        const response = await shadowFetch('https://u.4399.com/profile/modify-save.html', fetchOptions)
 
         if (!response.ok) throw new Error(`请求失败: ${response.status}`)
 
@@ -217,4 +211,48 @@ export async function modifyQQ(qq, cookies = null) {
  */
 export async function modifyUserInfo(params, cookies = null) {
     return await sendModifyRequest(params, cookies)
+}
+
+/**
+ * 上传头像
+ * @param {File} file - 头像文件
+ * @param {Array} cookies - 可选
+ * @returns {Promise<{success: boolean, message?: string}>}
+ */
+export async function modifyAvatar(file, cookies = null) {
+    try {
+        const formData = new FormData()
+        formData.append('file', file, file.name)
+
+        const fetchOptions = {
+            method: 'POST',
+            body: formData,
+            credentials: 'include',
+            referrer: 'https://my.4399.com/profile/avatar?from=u',
+            headers: {
+                'Referer': 'https://my.4399.com/profile/avatar?from=u'
+            }
+        }
+
+        if (cookies && cookies.length > 0) {
+            fetchOptions.headers['cookie'] = cookies
+        }
+
+        const response = await shadowFetch('https://my.4399.com/profile/avatar-upload-from-u', fetchOptions)
+
+        if (!response.ok) throw new Error(`请求失败: ${response.status}`)
+
+        const result = await response.json()
+        if (result.state === true || result.ret === 'succ' || result.c === 200) {
+            return { success: true }
+        }
+
+        return {
+            success: false,
+            message: result.e || result.d || '上传失败'
+        }
+    } catch (error) {
+        console.error("[4399管家] 头像上传失败:", error)
+        return { success: false, message: error.message || '网络错误' }
+    }
 }

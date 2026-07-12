@@ -239,7 +239,6 @@
 <script setup>
 import {ref, computed, onMounted} from 'vue'
 import {ArrowDown} from '@element-plus/icons-vue'
-import {ElMessage, ElMessageBox} from 'element-plus'
 import AccountCard from './components/AccountCard.vue'
 import CooldownButton from './components/CooldownButton.vue'
 import {
@@ -251,7 +250,7 @@ import {
   moveUserToFolder as apiMoveUserToFolder
 } from '#features/folderManager.mjs'
 import {getCurrentUserAuth} from '#features/getCurrentUserAuth.mjs'
-import getUserInfo from '#features/getUserInfo.mjs'
+import getUserInfo, {getModifyPageInfo} from '#features/getUserInfo.mjs'
 import windowManager from '#utils/windowManager.mjs'
 
 // ====== 状态 ======
@@ -359,6 +358,11 @@ async function saveCurrentAccount() {
     return
   }
 
+  // 获取修改页面的邮箱和QQ
+  const modifyInfo = await getModifyPageInfo(btnAuth.cookies)
+  userData.email = modifyInfo.email
+  userData.qq = modifyInfo.qq
+
   userData.cookies = btnAuth.cookies
 
   const wrapper = await chrome.storage.local.get('info')
@@ -383,6 +387,11 @@ async function refreshAll() {
     const cookies = acc?.cookies || null
     const userData = await getUserInfo(puser, cookies)
     if (userData) {
+      // 获取修改页面的邮箱和QQ
+      const modifyInfo = await getModifyPageInfo(cookies)
+      userData.email = modifyInfo.email
+      userData.qq = modifyInfo.qq
+
       info[puser] = {...info[puser], ...userData}
       successCount++
     }
@@ -401,6 +410,11 @@ async function refreshUser(puser) {
   const cookies = acc?.cookies || null
   const userData = await getUserInfo(puser, cookies)
   if (userData) {
+    // 获取修改页面的邮箱和QQ
+    const modifyInfo = await getModifyPageInfo(cookies)
+    userData.email = modifyInfo.email
+    userData.qq = modifyInfo.qq
+
     info[puser] = {...info[puser], ...userData}
     await chrome.storage.local.set({info})
     ElMessage.success(`账号 ${acc.nickname} 刷新成功！`)

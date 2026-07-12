@@ -87,11 +87,41 @@
             </div>
             <div class="edit-row">
                 <label>地区</label>
-                <el-input v-model="editForm.region" :placeholder="user.region || '未填写'" size="small" />
+                <div class="region-selects">
+                    <el-select v-model="editForm.province" placeholder="省份" size="small" @change="editForm.city = ''" style="width: 50%">
+                        <el-option v-for="p in provinces" :key="p" :value="p" :label="p" />
+                    </el-select>
+                    <el-select v-model="editForm.city" placeholder="城市" size="small" :disabled="!editForm.province" style="width: 50%">
+                        <el-option v-for="c in cityOptions" :key="c" :value="c" :label="c" />
+                    </el-select>
+                </div>
             </div>
             <div class="edit-row">
                 <label>QQ</label>
                 <el-input v-model="editForm.qq" :placeholder="user.qq || '未填写'" size="small" />
+            </div>
+            <div class="edit-row">
+                <label>头像</label>
+                <div style="width: 100%">
+                    <div v-if="editForm.avatar" class="avatar-preview" @click="triggerAvatarUpload">
+                        <img :src="avatarPreviewUrl"  alt="头像"/>
+                        <div class="avatar-overlay">点击更换</div>
+                    </div>
+                    <el-upload
+                        v-else
+                        ref="avatarUploadRef"
+                        drag
+                        action="#"
+                        :auto-upload="false"
+                        :show-file-list="false"
+                        accept=".png,.jpg,.jpeg"
+                        :on-change="handleAvatarSelect"
+                    >
+                        <div style="padding: 10px">
+                            <div style="font-size: 12px">点击或拖拽图片</div>
+                        </div>
+                    </el-upload>
+                </div>
             </div>
             <el-button type="primary" size="small" @click="handleSaveEdit" :loading="saving" style="width: 100%">
                 保存修改
@@ -101,10 +131,10 @@
 </template>
 
 <script setup>
-import {ref, onMounted} from 'vue'
-import {ElMessage} from 'element-plus'
+import {ref, computed, onMounted, nextTick} from 'vue'
 import {shadowFetch} from '#utils/shadowFetch.mjs'
-import {modifyUserInfo} from '#features/modifyUserInfo.mjs'
+import {modifyUserInfo, modifyAvatar} from '#features/modifyUserInfo.mjs'
+import {getRegionData} from '#utils/regionData.mjs'
 
 const props = defineProps({
     user: Object,
@@ -119,6 +149,7 @@ const showEditForm = ref(false)
 const showMovePopover = ref(false)
 const moveTrigger = ref(null)
 const saving = ref(false)
+const avatarUploadRef = ref(null)
 
 const avatarUrl = ref('https://via.placeholder.com/48')
 
@@ -127,11 +158,30 @@ const editForm = ref({
     email: '',
     sex: '',
     birthday: '',
-    region: '',
-    qq: ''
+    province: '',
+    city: '',
+    qq: '',
+    avatar: null
+})
+
+const provinces = ref([])
+const cityMap = ref({})
+
+const cityOptions = computed(() => {
+    return editForm.value.province ? (cityMap.value[editForm.value.province] || []) : []
+})
+
+const avatarPreviewUrl = computed(() => {
+    if (!editForm.value.avatar) return ''
+    return URL.createObjectURL(editForm.value.avatar)
 })
 
 onMounted(async () => {
+    // 加载地区数据
+    const regionData = await getRegionData()
+    provinces.value = regionData.provinces
+    cityMap.value = regionData.cities
+
     if (props.user.avatar) {
         try {
             const resp = await shadowFetch(props.user.avatar, {
@@ -201,22 +251,44 @@ function handleMove(folderId) {
     emit('move', props.user.puser, folderId)
 }
 
+function handleAvatarSelect(file) {
+    const allowed = ['image/jpeg', 'image/png']
+    if (!allowed.includes(file.raw.type)) {
+        ElMessage.error('只支持 JPG/PNG 格式')
+        return
+    }
+    editForm.value.avatar = file.raw
+}
+
+function triggerAvatarUpload() {
+    editForm.value.avatar = null
+    nextTick(() => {
+        avatarUploadRef.value?.handleClick()
+    })
+}
+
 async function handleSaveEdit() {
     const params = {}
     if (editForm.value.nick) params.nick = editForm.value.nick
     if (editForm.value.email) params.email = editForm.value.email
     if (editForm.value.sex) params.sex = editForm.value.sex
     if (editForm.value.birthday) params.birthday = editForm.value.birthday
-    if (editForm.value.region) params.region = editForm.value.region
+    if (editForm.value.province) params.province = editForm.value.province
+    if (editForm.value.city) params.city = editForm.value.city
     if (editForm.value.qq) params.qq = editForm.value.qq
 
-    if (Object.keys(params).length === 0) {
+    if (Object.keys(params).length === 0 && !editForm.value.avatar) {
         ElMessage.warning('未输入任何修改内容')
         return
     }
 
     saving.value = true
-    const result = await modifyUserInfo(params, props.user.cookies)
+    let result
+    if (editForm.value.avatar) {
+        result = await modifyAvatar(editForm.value.avatar, props.user.cookies)
+    } else {
+        result = await modifyUserInfo(params, props.user.cookies)
+    }
     saving.value = false
 
     if (result.success) {
@@ -224,7 +296,7 @@ async function handleSaveEdit() {
         showEditForm.value = false
         emit('refresh', props.user.puser)
     } else {
-        ElMessage.error(`${result.message}\n${JSON.stringify(result.data, null, 2)}`)
+        ElMessage.error(`${result.message}\n${JSON.stringify(result.data || {}, null, 2)}`)
     }
 }
 </script>
@@ -309,6 +381,12 @@ async function handleSaveEdit() {
     flex-shrink: 0;
 }
 
+.region-selects {
+    display: flex;
+    gap: 4px;
+    flex: 1;
+}
+
 .move-popover .move-title {
     font-size: 13px;
     font-weight: 500;
@@ -331,5 +409,38 @@ async function handleSaveEdit() {
 
 .move-item:hover {
     background: #f0f0f0;
+}
+
+.avatar-preview {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    overflow: hidden;
+    cursor: pointer;
+    border: 2px dashed #dcdfe6;
+}
+
+.avatar-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.avatar-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.avatar-preview:hover .avatar-overlay {
+    opacity: 1;
 }
 </style>
