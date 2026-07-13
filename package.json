@@ -4,6 +4,8 @@
     "#features/*": "./src/js/features/*"
   },
   "dependencies": {
+    "@element-plus/icons-vue": "^2.3.2",
+    "crypto-js": "^4.2.0",
     "element-plus": "^2.14.3",
     "vue": "^3.5.39"
   },

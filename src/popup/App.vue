@@ -3,6 +3,7 @@
     <div class="header">
       <h2>🎮 4399 账号管家</h2>
       <div class="header-btns">
+        <el-button size="small" type="success" @click="showLoginDialog = true">🔑 登录</el-button>
         <el-button size="small" type="primary" @click="showCreateFolder = true">+ 文件夹</el-button>
       </div>
     </div>
@@ -51,7 +52,11 @@
         <!-- 文件夹 -->
         <div class="folder-block">
           <div class="folder-header">
-            <span class="folder-name">📂 {{ folder.folderName }}</span>
+            <el-checkbox
+                :model-value="isFolderSelected(folder.id)"
+                @change="toggleFolderSelect(folder.id)"
+            />
+            <span class="folder-name">{{ folder.folderName }}</span>
             <div class="folder-actions">
               <el-button size="small" text @click="openRenameFolder(folder)">✏️</el-button>
               <el-dropdown @command="(cmd) => moveFolderTo(folder, cmd)" trigger="click">
@@ -115,7 +120,11 @@
           <template v-for="child in folder.children" :key="child.id">
             <div class="folder-block sub-folder">
               <div class="folder-header">
-                <span class="folder-name">📂 {{ child.folderName }}</span>
+                <el-checkbox
+                    :model-value="isFolderSelected(child.id)"
+                    @change="toggleFolderSelect(child.id)"
+                />
+                <span class="folder-name">{{ child.folderName }}</span>
                 <div class="folder-actions">
                   <el-button size="small" text @click="openRenameFolder(child)">✏️</el-button>
                   <el-dropdown @command="(cmd) => moveFolderTo(child, cmd)" trigger="click">
@@ -180,7 +189,11 @@
       <!-- 顶层用户 -->
       <div class="top-level">
         <div class="folder-header" v-if="folderTree.length > 0">
-          <span class="folder-name">📄 顶层</span>
+          <el-checkbox
+              :model-value="isFolderSelected(null)"
+              @change="toggleFolderSelect(null)"
+          />
+          <span class="folder-name">顶层</span>
         </div>
         <AccountCard
             v-for="user in getUsersInFolder(null)"
@@ -233,6 +246,22 @@
         <el-button type="primary" @click="renameFolder">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 登录对话框 -->
+    <el-dialog v-model="showLoginDialog" title="4399 登录" width="360px">
+      <el-form label-width="60px">
+        <el-form-item label="账号">
+          <el-input v-model="loginForm.username" placeholder="用户名或手机号" @keyup.enter="handleLogin"/>
+        </el-form-item>
+        <el-form-item label="密码">
+          <el-input v-model="loginForm.password" type="password" placeholder="密码" show-password @keyup.enter="handleLogin"/>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showLoginDialog = false">取消</el-button>
+        <el-button type="primary" @click="handleLogin" :loading="loginLoading">登录</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -251,6 +280,7 @@ import {
 } from '#features/folderManager.mjs'
 import {getCurrentUserAuth} from '#features/getCurrentUserAuth.mjs'
 import getUserInfo, {getModifyPageInfo} from '#features/getUserInfo.mjs'
+import {login} from '#features/login.mjs'
 import windowManager from '#utils/windowManager.mjs'
 
 // ====== 状态 ======
@@ -260,6 +290,11 @@ const accounts = ref({})
 const folderTree = ref([])
 const selectedUsers = ref([])
 const refreshing = ref(false)
+
+// 登录
+const showLoginDialog = ref(false)
+const loginLoading = ref(false)
+const loginForm = ref({ username: '', password: '' })
 
 // 创建文件夹
 const showCreateFolder = ref(false)
@@ -336,6 +371,81 @@ function toggleSelectAll(val) {
     selectedUsers.value = allUsers.value.map(u => u.puser)
   } else {
     selectedUsers.value = []
+  }
+}
+
+function isFolderSelected(folderId) {
+  const users = getUsersInFolder(folderId)
+  if (users.length === 0) return false
+  return users.every(u => selectedUsers.value.includes(u.puser))
+}
+
+function toggleFolderSelect(folderId) {
+  const users = getUsersInFolder(folderId)
+  const pusers = users.map(u => u.puser)
+  const allSelected = pusers.every(p => selectedUsers.value.includes(p))
+
+  if (allSelected) {
+    selectedUsers.value = selectedUsers.value.filter(p => !pusers.includes(p))
+  } else {
+    const newSelected = new Set(selectedUsers.value)
+    pusers.forEach(p => newSelected.add(p))
+    selectedUsers.value = [...newSelected]
+  }
+}
+
+async function handleLogin() {
+  if (!loginForm.value.username || !loginForm.value.password) {
+    ElMessage.warning('请输入账号和密码')
+    return
+  }
+
+  loginLoading.value = true
+  const result = await login(loginForm.value.username, loginForm.value.password)
+  loginLoading.value = false
+
+  if (result.success) {
+    // 过滤必要 cookie
+    const necessaryCookies = ['Puser', 'Uauth', 'Pauth', 'Xauth', 'ptusertype']
+    const savedCookies = result.cookies.filter(c => necessaryCookies.includes(c.name))
+
+    // 获取 Puser 作为账号 ID
+    const puserCookie = savedCookies.find(c => c.name === 'Puser')
+    if (!puserCookie) {
+      ElMessage.error('登录失败：未获取到用户 ID')
+      return
+    }
+
+    const puser = puserCookie.value
+
+    // 用这些 cookie 获取用户信息
+    ElMessage.info('正在获取用户信息...')
+    const userInfo = await getUserInfo(puser, savedCookies)
+    const modifyInfo = await getModifyPageInfo(savedCookies)
+
+    // 读取现有数据
+    const wrapper = await chrome.storage.local.get('info')
+    const info = wrapper.info || {}
+
+    // 保存到插件存储
+    info[puser] = {
+      ...(userInfo || {}),
+      puser,
+      cookies: savedCookies,
+      email: modifyInfo?.email || '',
+      qq: modifyInfo?.qq || ''
+    }
+
+    await chrome.storage.local.set({ info })
+
+    ElMessage.success('登录成功！账号已保存')
+    showLoginDialog.value = false
+    loginForm.value = { username: '', password: '' }
+
+    // 刷新列表
+    await refreshData()
+  } else {
+    ElMessage.error(result.message || '登录失败')
   }
 }
 
@@ -663,6 +773,8 @@ body {
 .folder-name {
   font-weight: 500;
   color: #333;
+  margin-left: 8px;
+  flex: 1;
 }
 
 .folder-actions {

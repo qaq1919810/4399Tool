@@ -20,7 +20,8 @@
     "declarativeNetRequest",
     "declarativeNetRequestWithHostAccess",
     "notifications",
-    "scripting"
+    "scripting",
+    "webRequest"
   ],
   "host_permissions": [
     "<all_urls>"

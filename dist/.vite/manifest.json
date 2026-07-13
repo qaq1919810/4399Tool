@@ -1,20 +1,20 @@
 {
   "../../../../../../@crx/manifest": {
-    "file": "assets/crx-manifest.js-Ed02U5Yi.js",
+    "file": "assets/crx-manifest.js-Bv2xDcdT.js",
     "name": "crx-manifest.js",
     "src": "../../../../../../@crx/manifest",
     "isEntry": true
   },
-  "_css-DQ3ViKUM.css": {
-    "file": "assets/css-DQ3ViKUM.css",
-    "src": "_css-DQ3ViKUM.css"
-  },
-  "_css-DZdEBjO-.js": {
-    "file": "assets/css-DZdEBjO-.js",
+  "_css-DAUuL4Fj.js": {
+    "file": "assets/css-DAUuL4Fj.js",
     "name": "css",
     "css": [
       "assets/css-DQ3ViKUM.css"
     ]
+  },
+  "_css-DQ3ViKUM.css": {
+    "file": "assets/css-DQ3ViKUM.css",
+    "src": "_css-DQ3ViKUM.css"
   },
   "src/background.mjs": {
     "file": "assets/background.mjs-DcovRqii.js",
@@ -23,27 +23,27 @@
     "isEntry": true
   },
   "src/html/popup/batch-edit.html": {
-    "file": "assets/batch-edit-DqAEySGo.js",
+    "file": "assets/batch-edit-B-nnSDQs.js",
     "name": "batch-edit",
     "src": "src/html/popup/batch-edit.html",
     "isEntry": true,
     "imports": [
-      "_css-DZdEBjO-.js"
+      "_css-DAUuL4Fj.js"
     ],
     "css": [
-      "assets/batch-edit-CCRCgB5L.css"
+      "assets/batch-edit-BDEzK2SG.css"
     ]
   },
   "src/html/popup/index.html": {
-    "file": "assets/index-CHCPKBi6.js",
+    "file": "assets/index-1ZkhFUrW.js",
     "name": "index",
     "src": "src/html/popup/index.html",
     "isEntry": true,
     "imports": [
-      "_css-DZdEBjO-.js"
+      "_css-DAUuL4Fj.js"
     ],
     "css": [
-      "assets/index-DP-S7ss5.css"
+      "assets/index-Cj9LNcEE.css"
     ]
   }
 }

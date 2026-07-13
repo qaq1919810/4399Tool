@@ -23,7 +23,8 @@ export default {
         "declarativeNetRequest",
         "declarativeNetRequestWithHostAccess",
         "notifications",
-        "scripting"
+        "scripting",
+        "webRequest"
     ],
 
     host_permissions: [
