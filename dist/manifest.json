@@ -32,8 +32,9 @@
         "<all_urls>"
       ],
       "resources": [
-        "src/html/popup/index.html",
-        "src/html/popup/batch-edit.html"
+        "src/html/popup/index/index.html",
+        "src/html/popup/batchEdit/batch-edit.html",
+        "src/html/popup/batchImport/index.html"
       ],
       "use_dynamic_url": false
     }

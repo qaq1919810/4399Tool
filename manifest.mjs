@@ -32,7 +32,7 @@ export default {
     ],
 
     web_accessible_resources: [{
-        resources: ["src/html/popup/index.html", "src/html/popup/batch-edit.html"],
+        resources: ["src/html/popup/index/index.html", "src/html/popup/batchEdit/batch-edit.html", "src/html/popup/batchImport/index.html"],
         matches: ["<all_urls>"]
     }]
 }

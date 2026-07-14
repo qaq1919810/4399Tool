@@ -13,12 +13,11 @@ import {ElementPlusResolver} from 'unplugin-vue-components/resolvers'
 
 function getHtmlEntries(){
     const entries = {}
-    // 💡 直接扫描整个 src 目录下所有的 html 文件！
+    // 直接扫描整个 src 目录下所有的 html 文件
     const files = globSync('src/**/*.html')
 
     files.forEach(file => {
-        // 提取文件名（不带后缀），如：index, batch-edit
-        const name = basename(file, extname(file))
+        const name = file.replace(/\.html$/, '')
 
         const __dirname = fileURLToPath(new URL('.', import.meta.url))
         entries[name] = resolve(__dirname, file)

@@ -16,6 +16,7 @@
       <el-button type="warning" @click="refreshAll" :loading="refreshing" class="btn-refresh">
         全部刷新
       </el-button>
+      <el-button type="success" @click="batchImport">批量导入</el-button>
     </div>
 
     <!-- 多选操作栏 -->
@@ -578,12 +579,16 @@ async function batchEdit() {
     return
   }
 
-  const handle = await windowManager.create('src/html/popup/batch-edit.html', {width: 500, height: 600})
+  const handle = await windowManager.create('src/html/popup/batchEdit/batch-edit.html', {width: 500, height: 600})
   if (handle) {
     await handle.exec((win) => {
       win.__BATCH_DATA__ = selectedAccounts
     })
   }
+}
+
+async function batchImport() {
+  await windowManager.create('src/html/popup/batchImport/index.html', {width: 600, height: 500})
 }
 
 // ====== 文件夹操作 ======
