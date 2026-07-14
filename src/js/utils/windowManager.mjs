@@ -14,6 +14,7 @@ class WindowManager {
 
     // 原生私有 URL 处理方法
     #parseUrl(url) {
+        // noinspection HttpUrlsUsage
         if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('chrome-extension://')) {
             return url
         }
@@ -25,7 +26,7 @@ class WindowManager {
         return new Promise((resolve, reject) => {
             let attempts = 0
             const check = () => {
-                const views = chrome.extension.getViews({ tabId })
+                const views = chrome.extension.getViews({tabId})
                 if (views.length > 0) {
                     resolve(views[0])
                 } else {
@@ -56,15 +57,12 @@ class WindowManager {
 
                 // 核心大招：单方闭包直控，不再需要传递第二个参数数组
                 exec: async (func) => {
-                    this.#log('执行 exec (闭包直控模式)', { tabId, functionName: func.name || 'anonymous' })
+                    this.#log('执行 exec (闭包直控模式)', {tabId, functionName: func.name || 'anonymous'})
 
                     try {
                         // 1. 获取目标窗口的物理 Window 实例
                         const targetWindow = await this.#getTargetView(tabId)
-                        const targetDocument = targetWindow.document
-
-                        // 2. 直接执行函数，只注入目标窗体的 win 和 doc
-                        return func(targetWindow, targetDocument)
+                        return func(targetWindow)
                     } catch (error) {
                         console.error('[WindowManagerSDK] exec 执行失败:', error)
                         throw error
@@ -73,7 +71,7 @@ class WindowManager {
 
                 // 销毁当前窗口
                 close: async () => {
-                    this.#log('执行 close', { windowId, tabId })
+                    this.#log('执行 close', {windowId, tabId})
                     return chrome.windows.remove(windowId)
                 }
             }
@@ -85,7 +83,7 @@ class WindowManager {
      */
     async getWindows() {
         this.#log('读取 getWindows', '正在获取所有Popup窗口...')
-        const winList = await chrome.windows.getAll({ populate: true })
+        const winList = await chrome.windows.getAll({populate: true})
 
         const instances = winList
             .filter(win => win.type === 'popup')
@@ -109,7 +107,7 @@ class WindowManager {
      */
     async create(url, sizeConfig = '') {
         const finalUrl = this.#parseUrl(url)
-        this.#log('准备 create 窗口', { url: finalUrl, sizeConfig })
+        this.#log('准备 create 窗口', {url: finalUrl, sizeConfig})
 
         const options = {
             url: finalUrl,
@@ -130,9 +128,9 @@ class WindowManager {
         const windowId = newWindow.id
         const tabId = newWindow.tabs[0].id
 
-        this.#log('窗口 create 成功', { windowId, tabId })
+        this.#log('窗口 create 成功', {windowId, tabId})
         return this.getWindow(windowId, tabId)
     }
 }
 
-export default new WindowManager({ logger: true })
+export default new WindowManager({logger: true})

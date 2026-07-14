@@ -1,6 +1,6 @@
 // noinspection SpellCheckingInspection
 
-import { shadowFetch } from '#utils/shadowFetch.mjs'
+import {shadowFetch} from '#utils/shadowFetch.mjs'
 
 /**
  * 获取修改页面的 __HASH__
@@ -9,9 +9,9 @@ import { shadowFetch } from '#utils/shadowFetch.mjs'
  */
 async function getHash(cookies = null) {
     try {
-        const fetchOptions = { credentials: 'include' }
+        const fetchOptions = {credentials: 'include'}
         if (cookies && cookies.length > 0) {
-            fetchOptions.headers = { 'cookie': cookies }
+            fetchOptions.headers = {'cookie': cookies}
         }
 
         const response = await shadowFetch('https://u.4399.com/profile/modify.html', fetchOptions)
@@ -34,9 +34,9 @@ async function getHash(cookies = null) {
  */
 async function getCurrentProfile(cookies = null) {
     try {
-        const fetchOptions = { credentials: 'include' }
+        const fetchOptions = {credentials: 'include'}
         if (cookies && cookies.length > 0) {
-            fetchOptions.headers = { 'cookie': cookies }
+            fetchOptions.headers = {'cookie': cookies}
         }
 
         const response = await shadowFetch('https://u.4399.com/profile/modify.html', fetchOptions)
@@ -127,7 +127,7 @@ async function sendModifyRequest(params, cookies = null) {
 
         // 成功
         if (result.state === true || result.ret === 'succ' || result.c === 200) {
-            return { success: true }
+            return {success: true}
         }
 
         // 错误：直接返回 d 对象
@@ -138,7 +138,7 @@ async function sendModifyRequest(params, cookies = null) {
         }
     } catch (error) {
         console.error("[4399管家] 修改失败:", error)
-        return { success: false, message: error.message || '网络错误' }
+        return {success: false, message: error.message || '网络错误'}
     }
 }
 
@@ -149,7 +149,7 @@ async function sendModifyRequest(params, cookies = null) {
  * @returns {Promise<boolean>}
  */
 export async function modifyEmail(email, cookies = null) {
-    return await sendModifyRequest({ email }, cookies)
+    return await sendModifyRequest({email}, cookies)
 }
 
 /**
@@ -159,7 +159,7 @@ export async function modifyEmail(email, cookies = null) {
  * @returns {Promise<boolean>}
  */
 export async function modifyNickname(nick, cookies = null) {
-    return await sendModifyRequest({ nick }, cookies)
+    return await sendModifyRequest({nick}, cookies)
 }
 
 /**
@@ -169,7 +169,7 @@ export async function modifyNickname(nick, cookies = null) {
  * @returns {Promise<boolean>}
  */
 export async function modifyGender(sex, cookies = null) {
-    return await sendModifyRequest({ sex }, cookies)
+    return await sendModifyRequest({sex}, cookies)
 }
 
 /**
@@ -179,7 +179,7 @@ export async function modifyGender(sex, cookies = null) {
  * @returns {Promise<boolean>}
  */
 export async function modifyBirthday(birthday, cookies = null) {
-    return await sendModifyRequest({ birthday }, cookies)
+    return await sendModifyRequest({birthday}, cookies)
 }
 
 /**
@@ -190,7 +190,7 @@ export async function modifyBirthday(birthday, cookies = null) {
  * @returns {Promise<boolean>}
  */
 export async function modifyRegion(province, city, cookies = null) {
-    return await sendModifyRequest({ province, city }, cookies)
+    return await sendModifyRequest({province, city}, cookies)
 }
 
 /**
@@ -200,7 +200,7 @@ export async function modifyRegion(province, city, cookies = null) {
  * @returns {Promise<boolean>}
  */
 export async function modifyQQ(qq, cookies = null) {
-    return await sendModifyRequest({ qq }, cookies)
+    return await sendModifyRequest({qq}, cookies)
 }
 
 /**
@@ -244,7 +244,7 @@ export async function modifyAvatar(file, cookies = null) {
 
         const result = await response.json()
         if (result.state === true || result.ret === 'succ' || result.c === 200) {
-            return { success: true }
+            return {success: true}
         }
 
         return {
@@ -253,6 +253,6 @@ export async function modifyAvatar(file, cookies = null) {
         }
     } catch (error) {
         console.error("[4399管家] 头像上传失败:", error)
-        return { success: false, message: error.message || '网络错误' }
+        return {success: false, message: error.message || '网络错误'}
     }
 }

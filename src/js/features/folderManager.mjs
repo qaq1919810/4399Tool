@@ -28,7 +28,7 @@ export async function getAllFolders() {
  * @param {Array} folders
  */
 async function saveAllFolders(folders) {
-    await chrome.storage.local.set({ [STORAGE_KEY]: folders })
+    await chrome.storage.local.set({[STORAGE_KEY]: folders})
 }
 
 /**
@@ -39,7 +39,7 @@ async function saveAllFolders(folders) {
  */
 export async function createFolder(folderName, parentFolderId = null) {
     if (!folderName || !folderName.trim()) {
-        return { success: false, message: '文件夹名称不能为空' }
+        return {success: false, message: '文件夹名称不能为空'}
     }
 
     const folders = await getAllFolders()
@@ -49,7 +49,7 @@ export async function createFolder(folderName, parentFolderId = null) {
         f.folderName === folderName.trim() && f.parentFolderId === parentFolderId
     )
     if (exists) {
-        return { success: false, message: '同级目录下已存在同名文件夹' }
+        return {success: false, message: '同级目录下已存在同名文件夹'}
     }
 
     const newFolder = {
@@ -61,7 +61,7 @@ export async function createFolder(folderName, parentFolderId = null) {
     folders.push(newFolder)
     await saveAllFolders(folders)
 
-    return { success: true, folder: newFolder }
+    return {success: true, folder: newFolder}
 }
 
 /**
@@ -75,7 +75,7 @@ export async function deleteFolder(folderId) {
     // 找到要删除的文件夹
     const folder = folders.find(f => f.id === folderId)
     if (!folder) {
-        return { success: false, message: '文件夹不存在' }
+        return {success: false, message: '文件夹不存在'}
     }
 
     // 递归收集所有要删除的文件夹 ID
@@ -108,9 +108,9 @@ export async function deleteFolder(folderId) {
         }
     }
 
-    await chrome.storage.local.set({ info })
+    await chrome.storage.local.set({info})
 
-    return { success: true, deletedUsers }
+    return {success: true, deletedUsers}
 }
 
 /**
@@ -121,13 +121,13 @@ export async function deleteFolder(folderId) {
  */
 export async function renameFolder(folderId, newName) {
     if (!newName || !newName.trim()) {
-        return { success: false, message: '文件夹名称不能为空' }
+        return {success: false, message: '文件夹名称不能为空'}
     }
 
     const folders = await getAllFolders()
     const folder = folders.find(f => f.id === folderId)
     if (!folder) {
-        return { success: false, message: '文件夹不存在' }
+        return {success: false, message: '文件夹不存在'}
     }
 
     // 检查同级下是否有同名文件夹
@@ -137,13 +137,13 @@ export async function renameFolder(folderId, newName) {
         f.parentFolderId === folder.parentFolderId
     )
     if (exists) {
-        return { success: false, message: '同级目录下已存在同名文件夹' }
+        return {success: false, message: '同级目录下已存在同名文件夹'}
     }
 
     folder.folderName = newName.trim()
     await saveAllFolders(folders)
 
-    return { success: true }
+    return {success: true}
 }
 
 /**
@@ -156,12 +156,12 @@ export async function moveFolder(folderId, newParentFolderId) {
     const folders = await getAllFolders()
     const folder = folders.find(f => f.id === folderId)
     if (!folder) {
-        return { success: false, message: '文件夹不存在' }
+        return {success: false, message: '文件夹不存在'}
     }
 
     // 不能移动到自己内部
     if (folderId === newParentFolderId) {
-        return { success: false, message: '不能将文件夹移动到自身内部' }
+        return {success: false, message: '不能将文件夹移动到自身内部'}
     }
 
     // 检查是否会导致循环引用
@@ -175,7 +175,7 @@ export async function moveFolder(folderId, newParentFolderId) {
     }
 
     if (newParentFolderId !== null && isDescendant(folderId, newParentFolderId)) {
-        return { success: false, message: '不能将文件夹移动到其子文件夹内' }
+        return {success: false, message: '不能将文件夹移动到其子文件夹内'}
     }
 
     // 检查同级下是否有同名文件夹
@@ -185,13 +185,13 @@ export async function moveFolder(folderId, newParentFolderId) {
         f.parentFolderId === newParentFolderId
     )
     if (exists) {
-        return { success: false, message: '目标位置已存在同名文件夹' }
+        return {success: false, message: '目标位置已存在同名文件夹'}
     }
 
     folder.parentFolderId = newParentFolderId
     await saveAllFolders(folders)
 
-    return { success: true }
+    return {success: true}
 }
 
 /**
@@ -205,7 +205,7 @@ export async function moveUserToFolder(puser, folderId) {
     const info = infoWrapper.info || {}
 
     if (!info[puser]) {
-        return { success: false, message: '用户不存在' }
+        return {success: false, message: '用户不存在'}
     }
 
     // 如果目标不是顶层，检查文件夹是否存在
@@ -213,14 +213,14 @@ export async function moveUserToFolder(puser, folderId) {
         const folders = await getAllFolders()
         const folder = folders.find(f => f.id === folderId)
         if (!folder) {
-            return { success: false, message: '目标文件夹不存在' }
+            return {success: false, message: '目标文件夹不存在'}
         }
     }
 
     info[puser].parentFolderId = folderId
-    await chrome.storage.local.set({ info })
+    await chrome.storage.local.set({info})
 
-    return { success: true }
+    return {success: true}
 }
 
 /**

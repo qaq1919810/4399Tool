@@ -1,9 +1,9 @@
 // ====== 0. 导入获取用户信息的核心函数 ======
-import { getCurrentUserAuth } from '#/features/getCurrentUserAuth.mjs'
+import {getCurrentUserAuth} from '#/features/getCurrentUserAuth.mjs'
 import getUserInfo from '#/features/getUserInfo.mjs'
-import { modifyUserInfo } from '#/features/modifyUserInfo.mjs'
-import { shadowFetch } from '#/utils/shadowFetch.mjs'
-import { systemNotification } from '#/utils/notify.mjs'
+import {modifyUserInfo} from '#/features/modifyUserInfo.mjs'
+import {shadowFetch} from '#/utils/shadowFetch.mjs'
+import {systemNotification} from '#/utils/notify.mjs'
 
 // ====== 1. 初始化，页面加载时执行 ======
 document.addEventListener('DOMContentLoaded', async () => {
@@ -64,7 +64,7 @@ document.getElementById('btn-save-current').addEventListener('click', async () =
         oldInfo[userData.puser] = userData
 
         // 存入 Chrome 本地存储
-        await chrome.storage.local.set({ [storageKey]: oldInfo })
+        await chrome.storage.local.set({[storageKey]: oldInfo})
 
         btn.innerText = "✅ 保存成功！"
         btn.style.background = "#4CAF50"
@@ -123,12 +123,12 @@ function setupRefreshAllButton() {
             const cookies = acc?.cookies || null
             const userData = await getUserInfo(puser, cookies)
             if (userData) {
-                storageInfo[puser] = { ...storageInfo[puser], ...userData }
+                storageInfo[puser] = {...storageInfo[puser], ...userData}
                 successCount++
             }
         }
 
-        await chrome.storage.local.set({ info: storageInfo })
+        await chrome.storage.local.set({info: storageInfo})
         await systemNotification(`✅ 刷新完成，成功 ${successCount}/${pusers.length} 个账号`)
         await renderAccountList()
 
@@ -142,7 +142,7 @@ async function fetchAvatar(url) {
     if (!url) return 'https://via.placeholder.com/48'
     try {
         const resp = await shadowFetch(url, {
-            headers: { 'Referer': 'https://u.4399.com/' }
+            headers: {'Referer': 'https://u.4399.com/'}
         })
 
         if (!resp.ok) return 'https://via.placeholder.com/48'
@@ -202,7 +202,7 @@ async function renderAccountList() {
             const success = await switch4399Account(acc.cookies)
 
             if (success) {
-                chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
                     const currentTab = tabs[0]
                     if (currentTab && currentTab.url.includes('4399.com')) {
                         chrome.tabs.reload(currentTab.id)
@@ -228,8 +228,8 @@ async function renderAccountList() {
             if (userData) {
                 const storageWrapper = await chrome.storage.local.get('info')
                 const storageInfo = storageWrapper.info || {}
-                storageInfo[acc.puser] = { ...storageInfo[acc.puser], ...userData }
-                await chrome.storage.local.set({ info: storageInfo })
+                storageInfo[acc.puser] = {...storageInfo[acc.puser], ...userData}
+                await chrome.storage.local.set({info: storageInfo})
                 await systemNotification(`✅ 账号 ${acc.nickname} 刷新成功！`)
                 await renderAccountList()
             } else {
@@ -247,7 +247,7 @@ async function renderAccountList() {
             const storageWrapper = await chrome.storage.local.get('info')
             const storageInfo = storageWrapper.info || {}
             delete storageInfo[acc.puser]
-            await chrome.storage.local.set({ info: storageInfo })
+            await chrome.storage.local.set({info: storageInfo})
             await systemNotification(`✅ 已删除账号「${acc.nickname}」`)
             await renderAccountList()
         })
@@ -325,7 +325,7 @@ async function renderAccountList() {
                     const storageInfo = storageWrapper.info || {}
                     if (storageInfo[acc.puser]) {
                         Object.assign(storageInfo[acc.puser], params)
-                        await chrome.storage.local.set({ info: storageInfo })
+                        await chrome.storage.local.set({info: storageInfo})
                     }
                     await renderAccountList()
                 } else {

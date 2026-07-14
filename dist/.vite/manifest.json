@@ -5,16 +5,23 @@
     "src": "../../../../../../@crx/manifest",
     "isEntry": true
   },
-  "_css-DAUuL4Fj.js": {
-    "file": "assets/css-DAUuL4Fj.js",
+  "_css-DQ3ViKUM.css": {
+    "file": "assets/css-DQ3ViKUM.css",
+    "src": "_css-DQ3ViKUM.css"
+  },
+  "_css-NDcX7wk_.js": {
+    "file": "assets/css-NDcX7wk_.js",
     "name": "css",
+    "imports": [
+      "_rolldown-runtime-BHe-jwch.js"
+    ],
     "css": [
       "assets/css-DQ3ViKUM.css"
     ]
   },
-  "_css-DQ3ViKUM.css": {
-    "file": "assets/css-DQ3ViKUM.css",
-    "src": "_css-DQ3ViKUM.css"
+  "_rolldown-runtime-BHe-jwch.js": {
+    "file": "assets/rolldown-runtime-BHe-jwch.js",
+    "name": "rolldown-runtime"
   },
   "src/background.mjs": {
     "file": "assets/background.mjs-DcovRqii.js",
@@ -23,27 +30,29 @@
     "isEntry": true
   },
   "src/html/popup/batch-edit.html": {
-    "file": "assets/batch-edit-B-nnSDQs.js",
+    "file": "assets/batch-edit-DC0tfS2P.js",
     "name": "batch-edit",
     "src": "src/html/popup/batch-edit.html",
     "isEntry": true,
     "imports": [
-      "_css-DAUuL4Fj.js"
+      "_rolldown-runtime-BHe-jwch.js",
+      "_css-NDcX7wk_.js"
     ],
     "css": [
-      "assets/batch-edit-BDEzK2SG.css"
+      "assets/batch-edit-DSDJ0KvK.css"
     ]
   },
   "src/html/popup/index.html": {
-    "file": "assets/index-1ZkhFUrW.js",
+    "file": "assets/index-DetKTVAp.js",
     "name": "index",
     "src": "src/html/popup/index.html",
     "isEntry": true,
     "imports": [
-      "_css-DAUuL4Fj.js"
+      "_rolldown-runtime-BHe-jwch.js",
+      "_css-NDcX7wk_.js"
     ],
     "css": [
-      "assets/index-Cj9LNcEE.css"
+      "assets/index-DHL3ui0e.css"
     ]
   }
 }

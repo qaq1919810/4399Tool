@@ -1,6 +1,6 @@
 // noinspection SpellCheckingInspection
 
-import { shadowFetch } from '#utils/shadowFetch.mjs'
+import {shadowFetch} from '#utils/shadowFetch.mjs'
 
 /**
  * 解析个人中心页面 HTML
@@ -15,14 +15,14 @@ async function fetchProfilePage(username, cookies = null) {
         // 如果提供了 cookies，使用 shadowFetch 覆写，禁止浏览器自动附带 cookie
         if (cookies && cookies.length > 0) {
             const response = await shadowFetch('https://u.4399.com/profile/', {
-                headers: { 'cookie': cookies }
+                headers: {'cookie': cookies}
             })
             if (!response.ok) throw new Error(`请求失败: ${response.status}`)
             return await parseProfileHtml(username, await response.text())
         }
 
         // 没有提供 cookies，使用 shadowFetch（携带当前登录账号 cookie）
-        const response = await shadowFetch('https://u.4399.com/profile/', { credentials: 'include' })
+        const response = await shadowFetch('https://u.4399.com/profile/', {credentials: 'include'})
         if (!response.ok) throw new Error(`请求失败: ${response.status}`)
         return await parseProfileHtml(username, await response.text())
     } catch (error) {
@@ -161,10 +161,10 @@ export async function getModifyPageInfo(cookies = null) {
         let response
         if (cookies && cookies.length > 0) {
             response = await shadowFetch('https://u.4399.com/profile/modify.html', {
-                headers: { 'cookie': cookies }
+                headers: {'cookie': cookies}
             })
         } else {
-            response = await shadowFetch('https://u.4399.com/profile/modify.html', { credentials: 'include' })
+            response = await shadowFetch('https://u.4399.com/profile/modify.html', {credentials: 'include'})
         }
 
         if (!response.ok) throw new Error(`请求失败: ${response.status}`)
@@ -184,9 +184,9 @@ export async function getModifyPageInfo(cookies = null) {
             if (label === 'QQ :') qq = clean
         })
 
-        return { email, qq }
+        return {email, qq}
     } catch (error) {
         console.error("[4399管家] 获取修改页面信息失败:", error)
-        return { email: '', qq: '' }
+        return {email: '', qq: ''}
     }
 }

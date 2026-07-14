@@ -7,6 +7,7 @@ const SHADOW_CONFIG = {
     logger: {
         enabled: true,         // 日志总开关
         options: {
+            reqHeaders: true,  // 【新增开关】是否截获并读取底层真实外发的请求头（不需要时设为 false，速度飞快）
             resHeaders: true   // 是否强制截获并读取真实的响应头 (如 Set-Cookie)
         }
     }
@@ -14,16 +15,43 @@ const SHADOW_CONFIG = {
 
 const DNR_RULE_PREFIX = 20000
 const DNR_MAX_RULES = 10000
-let ruleCounter = 0 // 静态原子递增，仅作为 ID 生成器，不涉及并发状态污染
+let ruleCounter = 0 // 静态原子递增，仅作为 ID 生成器
 
 // 跨异步事件的数据转交中心，以 ruleId 为 Key，绝对不串数据
 const shadowResponseHeadersMap = new Map()
+const shadowRequestHeadersMap = new Map()
 
 /**
- * 后台静默监听所有带有 _shadow_req_id 标记的底层响应头
+ * 1. 后台静默监听：捕获浏览器底层真正外发的请求头（包含隐式自动补全的 Cookie 等）
+ */
+chrome.webRequest.onBeforeSendHeaders.addListener(
+    (details) => {
+        // 核心优化：如果总开关关闭，或者未开启请求头捕获，直接最速返回，不消耗任何 CPU 和内存
+        if (!SHADOW_CONFIG.logger.enabled || !SHADOW_CONFIG.logger.options.reqHeaders) return
+
+        try {
+            const urlObj = new URL(details.url)
+            const shadowReqId = urlObj.searchParams.get('_shadow_req_id')
+            if (shadowReqId && details.requestHeaders) {
+                // 命中影子水印，存入请求头 Map
+                shadowRequestHeadersMap.set(Number(shadowReqId), details.requestHeaders)
+            }
+        } catch (e) {
+            // 忽略非标准 URL 解析错误
+        }
+    },
+    {urls: ["<all_urls>"], types: ["xmlhttprequest"]},
+    ["requestHeaders", "extraHeaders"]
+)
+
+/**
+ * 2. 后台静默监听：所有带有 _shadow_req_id 标记的底层真实响应头
  */
 chrome.webRequest.onHeadersReceived.addListener(
     (details) => {
+        // 核心优化：如果总开关关闭，或者未开启响应头捕获，直接最速返回
+        if (!SHADOW_CONFIG.logger.enabled || !SHADOW_CONFIG.logger.options.resHeaders) return
+
         try {
             const urlObj = new URL(details.url)
             const shadowReqId = urlObj.searchParams.get('_shadow_req_id')
@@ -34,14 +62,13 @@ chrome.webRequest.onHeadersReceived.addListener(
             // 忽略非标准 URL 解析错误
         }
     },
-    { urls: ["<all_urls>"], types: ["xmlhttprequest"] },
-    ["responseHeaders", "extraHeaders"] // 必须加 extraHeaders 才能读到隐私头
+    {urls: ["<all_urls>"], types: ["xmlhttprequest"]},
+    ["responseHeaders", "extraHeaders"]
 )
 
 
 /**
  * ShadowFetch 核心静态类
- * 设计哲学：无状态 (Stateless)、静态化、闭包隔离、高并发安全
  */
 class ShadowFetch {
     static _FORBIDDEN_HEADERS = new Set([
@@ -50,9 +77,6 @@ class ShadowFetch {
         'keep-alive', 'transfer-encoding', 'via'
     ])
 
-    /**
-     * 垃圾回收：清理上一生命周期可能遗留的 DNR 规则
-     */
     static async cleanupLeakedRules() {
         try {
             const rules = await chrome.declarativeNetRequest.getSessionRules()
@@ -61,7 +85,7 @@ class ShadowFetch {
                 .filter(id => id >= DNR_RULE_PREFIX && id < DNR_RULE_PREFIX + DNR_MAX_RULES)
 
             if (leakedRuleIds.length > 0) {
-                await chrome.declarativeNetRequest.updateSessionRules({ removeRuleIds: leakedRuleIds })
+                await chrome.declarativeNetRequest.updateSessionRules({removeRuleIds: leakedRuleIds})
                 console.debug(`[ShadowFetch] Cleaned up ${leakedRuleIds.length} leaked DNR rules.`)
             }
         } catch (e) {
@@ -69,9 +93,6 @@ class ShadowFetch {
         }
     }
 
-    /**
-     * 判断是否为浏览器禁止写入的 Header
-     */
     static _isForbiddenHeader(key) {
         const lowerKey = key.toLowerCase()
         return this._FORBIDDEN_HEADERS.has(lowerKey) ||
@@ -79,48 +100,51 @@ class ShadowFetch {
             lowerKey.startsWith('proxy-')
     }
 
-    /**
-     * 后台异步打印日志 (闭包安全)
-     */
-    static async _printShadowLog(originalUrl, options, dnrHeaders, response, fetchError, realCapturedHeaders) {
+    static async _printShadowLog(originalUrl, options, dnrHeaders, response, fetchError, realCapturedHeaders, realOutgoingHeaders) {
         if (!SHADOW_CONFIG.logger.enabled) return
-
-        // 强行让出微任务队列，确保 webRequest 的拦截已经写入 Map
-        await new Promise(resolve => setTimeout(resolve, 0))
 
         const urlObj = new URL(originalUrl, globalThis.location?.origin)
         const baseURL = urlObj.origin + urlObj.pathname
         const method = (options.method || 'GET').toUpperCase()
-
-        const queries = Array.from(urlObj.searchParams.entries()).map(([key, value]) => ({ key, value }))
-
+        const queries = Array.from(urlObj.searchParams.entries()).map(([key, value]) => ({key, value}))
         const reqHeaders = []
-        if (options.headers instanceof Headers) {
-            for (const [key, value] of options.headers.entries()) {
-                reqHeaders.push({ key, value })
+
+        if (realOutgoingHeaders && realOutgoingHeaders.length > 0) {
+            for (const h of realOutgoingHeaders) {
+                const isImplicit = dnrHeaders.every(dh => dh.header !== h.name.toLowerCase()) &&
+                    !(options.headers instanceof Headers ? options.headers.has(h.name) : false)
+                reqHeaders.push({
+                    key: h.name,
+                    value: h.value,
+                    _isImplicit: isImplicit || undefined,
+                    _isShadowed: !isImplicit ? true : undefined
+                })
             }
-        }
-        for (const h of dnrHeaders) {
-            reqHeaders.push({ key: h.header, value: h.value, _isShadowed: true })
+        } else {
+            if (options.headers instanceof Headers) {
+                for (const [key, value] of options.headers.entries()) {
+                    reqHeaders.push({key, value})
+                }
+            }
+            for (const h of dnrHeaders) {
+                reqHeaders.push({key: h.header, value: h.value, _isShadowed: true})
+            }
         }
 
         const logData = {
             baseURL, method,
             statusCode: response ? response.status : (fetchError ? 0 : -1),
-            req: { headers: reqHeaders, queries, body: options.body || null },
+            req: {headers: reqHeaders, queries, body: options.body || null},
             res: null
         }
 
         if (response) {
             let resHeaders = []
-
-            // 核心逻辑：如果在底层捕获到了真实的头，直接无条件打印（反正都读取了不打印也亏）
             if (realCapturedHeaders && realCapturedHeaders.length > 0) {
-                resHeaders = realCapturedHeaders.map(h => ({ key: h.name, value: h.value }))
+                resHeaders = realCapturedHeaders.map(h => ({key: h.name, value: h.value}))
             } else {
-                // 降级使用 fetch 原生暴露的可打印头
                 for (const [key, value] of response.headers.entries()) {
-                    resHeaders.push({ key, value })
+                    resHeaders.push({key, value})
                 }
             }
 
@@ -132,9 +156,9 @@ class ShadowFetch {
             } catch (e) {
                 resBody = '[Unable to read or parse body]'
             }
-            logData.res = { headers: resHeaders, body: resBody }
+            logData.res = {headers: resHeaders, body: resBody}
         } else if (fetchError) {
-            logData.res = { error: fetchError.message || String(fetchError) }
+            logData.res = {error: fetchError.message || String(fetchError)}
         }
 
         const color = response?.ok ? '#4caf50' : '#f44336'
@@ -143,29 +167,23 @@ class ShadowFetch {
         console.groupEnd()
     }
 
-    /**
-     * 包装 Response 对象，实现被隐藏响应头的穿透读取
-     */
-    static _wrapResponse(response, realCapturedHeaders) {
-        if (!realCapturedHeaders) return response;
+    static #wrapResponse(response, realCapturedHeaders) {
+        if (!realCapturedHeaders) return response
 
         return new Proxy(response, {
             get(target, prop) {
                 if (prop === 'headers') {
                     return new Proxy(target.headers, {
                         get(hTarget, hProp) {
-                            // === 新增：完美适配 Node.js 18+ 的 getSetCookie ===
                             if (hProp === 'getSetCookie') {
-                                return function() {
-                                    // 从底层拦截到的头里，找出所有 set-cookie，并以数组形式返回
+                                return function () {
                                     return realCapturedHeaders
                                         .filter(h => h.name.toLowerCase() === 'set-cookie')
-                                        .map(h => h.value);
+                                        .map(h => h.value)
                                 }
                             }
-
                             if (hProp === 'get') {
-                                return function(name) {
+                                return function (name) {
                                     const lowerName = name.toLowerCase()
                                     const found = realCapturedHeaders.find(h => h.name.toLowerCase() === lowerName)
                                     if (found) return found.value
@@ -173,7 +191,7 @@ class ShadowFetch {
                                 }
                             }
                             if (hProp === 'has') {
-                                return function(name) {
+                                return function (name) {
                                     const lowerName = name.toLowerCase()
                                     const hasInShadow = realCapturedHeaders.some(h => h.name.toLowerCase() === lowerName)
                                     return hasInShadow || hTarget.has(name)
@@ -190,17 +208,19 @@ class ShadowFetch {
         })
     }
 
-    /**
-     * 拥有覆写、读取禁忌头部能力的 fetch
-     * @type {typeof fetch}
-     */
-    static async fetch(url, options = {}) {
-        const ClassObject = this // 锁死类对象，防止在 Proxy 等异步回调中 this 丢失
+    static async fetch(url, options = {}, shadowOptions = {}) {
+        const ClassObject = this
+
+        const setCookie = shadowOptions.setCookie ?? true
         const cleanOptions = { ...options }
+
+        if (setCookie === false) {
+            cleanOptions.credentials = 'omit'
+        }
+
         const dnrHeadersToSet = []
         const extractedForbiddenHeaders = new Map()
 
-        // 1. 提取 Header 逻辑
         if (cleanOptions.headers) {
             let headerEntries = []
             if (cleanOptions.headers instanceof Headers) {
@@ -226,20 +246,22 @@ class ShadowFetch {
             cleanOptions.headers = newHeaders
 
             for (const [key, value] of extractedForbiddenHeaders.entries()) {
-                dnrHeadersToSet.push({ header: key, operation: "set", value: value })
+                dnrHeadersToSet.push({header: key, operation: "set", value: value})
             }
         }
 
         const useDnr = dnrHeadersToSet.length > 0
-        // 是否需要追踪响应头：1.主动开启了读取响应头配置；2.因为有不可见请求头被迫用DNR，顺便读取
-        const needCaptureRes = SHADOW_CONFIG.logger.options.resHeaders || useDnr
+
+        // 判定是否需要启动水印追踪：只要响应头或请求头有一个需要捕获，或者用了 Omit 就要打水印
+        const needCaptureReq = SHADOW_CONFIG.logger.options.reqHeaders
+        const needCaptureRes = SHADOW_CONFIG.logger.options.resHeaders || useDnr || (setCookie === false)
+        const anyTracking = needCaptureReq || needCaptureRes
 
         let ruleId = null
         let magicUrl = url
         let removeRule = () => {}
 
-        // 如果需要追踪，打上 _shadow_req_id 水印
-        if (needCaptureRes) {
+        if (anyTracking) {
             ruleCounter = (ruleCounter + 1) % DNR_MAX_RULES
             ruleId = DNR_RULE_PREFIX + ruleCounter
 
@@ -249,7 +271,7 @@ class ShadowFetch {
 
             removeRule = () => {
                 if (useDnr) {
-                    chrome.declarativeNetRequest.updateSessionRules({ removeRuleIds: [ruleId] }).catch(() => {})
+                    chrome.declarativeNetRequest.updateSessionRules({removeRuleIds: [ruleId]}).catch(() => {})
                 }
             }
         }
@@ -257,33 +279,31 @@ class ShadowFetch {
         let response = null
         let fetchError = null
         let realCapturedHeaders = null
+        let realOutgoingHeaders = null
 
         try {
-            // 只有涉及到修改 请求头 时，才真正需要下发 DNR 规则
             if (useDnr) {
                 await chrome.declarativeNetRequest.updateSessionRules({
                     removeRuleIds: [ruleId],
                     addRules: [{
                         id: ruleId,
                         priority: 100,
-                        action: { type: "modifyHeaders", requestHeaders: dnrHeadersToSet },
-                        condition: { urlFilter: `*_shadow_req_id=${ruleId}*`, resourceTypes: ["xmlhttprequest"] }
+                        action: {type: "modifyHeaders", requestHeaders: dnrHeadersToSet},
+                        condition: {urlFilter: `*_shadow_req_id=${ruleId}*`, resourceTypes: ["xmlhttprequest"]}
                     }]
                 })
                 if (cleanOptions.signal) {
-                    cleanOptions.signal.addEventListener('abort', removeRule, { once: true })
+                    cleanOptions.signal.addEventListener('abort', removeRule, {once: true})
                 }
             }
 
-            // 发送请求
             response = await fetch(magicUrl, cleanOptions)
 
-            // 如果打过水印，尝试去 Map 提取真实响应头
             if (needCaptureRes) {
-                await new Promise(resolve => setTimeout(resolve, 0))
+                await new Promise(resolve => setTimeout(resolve, 10))
                 realCapturedHeaders = shadowResponseHeadersMap.get(ruleId)
                 if (realCapturedHeaders) {
-                    response = ClassObject._wrapResponse(response, realCapturedHeaders)
+                    response = ClassObject.#wrapResponse(response, realCapturedHeaders)
                 }
             }
 
@@ -294,20 +314,26 @@ class ShadowFetch {
         } finally {
             removeRule()
 
-            // 只要打过标记的请求，结束后统统从内存清理
             if (ruleId) {
-                setTimeout(() => shadowResponseHeadersMap.delete(ruleId), 500)
+                // 只有开启了配置，才去拿真正的请求头
+                if (needCaptureReq) {
+                    realOutgoingHeaders = shadowRequestHeadersMap.get(ruleId)
+                }
+
+                setTimeout(() => {
+                    shadowRequestHeadersMap.delete(ruleId)
+                    shadowResponseHeadersMap.delete(ruleId)
+                }, 500)
             }
 
-            // 执行日志
-            ClassObject._printShadowLog(url, cleanOptions, dnrHeadersToSet, response, fetchError, realCapturedHeaders).catch(() => {})
+            ClassObject._printShadowLog(
+                url, cleanOptions, dnrHeadersToSet, response, fetchError,
+                realCapturedHeaders, realOutgoingHeaders
+            ).catch(() => {})
         }
     }
 }
 
-// 初始化时自动执行泄漏规则清理
-// noinspection JSIgnoredPromiseFromCall
-ShadowFetch.cleanupLeakedRules()
+await ShadowFetch.cleanupLeakedRules()
 
-// 对外暴露与原生行为完全一致的调用接口
-export const shadowFetch = (url, options) => ShadowFetch.fetch(url, options)
+export const shadowFetch = (url, options, shadowOptions) => ShadowFetch.fetch(url, options, shadowOptions)

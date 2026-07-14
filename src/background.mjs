@@ -1,4 +1,4 @@
-chrome.action.onClicked.addListener(async() => {
+chrome.action.onClicked.addListener(async () => {
     await chrome.windows.create({
         url: chrome.runtime.getURL('src/html/popup/index.html'),
         type: 'popup',

@@ -254,7 +254,8 @@
           <el-input v-model="loginForm.username" placeholder="用户名或手机号" @keyup.enter="handleLogin"/>
         </el-form-item>
         <el-form-item label="密码">
-          <el-input v-model="loginForm.password" type="password" placeholder="密码" show-password @keyup.enter="handleLogin"/>
+          <el-input v-model="loginForm.password" type="password" placeholder="密码" show-password
+                    @keyup.enter="handleLogin"/>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -266,17 +267,17 @@
 </template>
 
 <script setup>
-import {ref, computed, onMounted} from 'vue'
+import {computed, onMounted, ref} from 'vue'
 import {ArrowDown} from '@element-plus/icons-vue'
 import AccountCard from './components/AccountCard.vue'
 import CooldownButton from './components/CooldownButton.vue'
 import {
-  getFolderTree,
   createFolder as apiCreateFolder,
   deleteFolder as apiDeleteFolder,
-  renameFolder as apiRenameFolder,
+  getFolderTree,
   moveFolder as apiMoveFolder,
-  moveUserToFolder as apiMoveUserToFolder
+  moveUserToFolder as apiMoveUserToFolder,
+  renameFolder as apiRenameFolder
 } from '#features/folderManager.mjs'
 import {getCurrentUserAuth} from '#features/getCurrentUserAuth.mjs'
 import getUserInfo, {getModifyPageInfo} from '#features/getUserInfo.mjs'
@@ -294,7 +295,7 @@ const refreshing = ref(false)
 // 登录
 const showLoginDialog = ref(false)
 const loginLoading = ref(false)
-const loginForm = ref({ username: '', password: '' })
+const loginForm = ref({username: '', password: ''})
 
 // 创建文件夹
 const showCreateFolder = ref(false)
@@ -436,11 +437,11 @@ async function handleLogin() {
       qq: modifyInfo?.qq || ''
     }
 
-    await chrome.storage.local.set({ info })
+    await chrome.storage.local.set({info})
 
     ElMessage.success('登录成功！账号已保存')
     showLoginDialog.value = false
-    loginForm.value = { username: '', password: '' }
+    loginForm.value = {username: '', password: ''}
 
     // 刷新列表
     await refreshData()

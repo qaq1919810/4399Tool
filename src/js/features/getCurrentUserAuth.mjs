@@ -6,7 +6,7 @@
  */
 export async function getCurrentUserAuth() {
     try {
-        const allCookies = await chrome.cookies.getAll({ domain: ".4399.com" })
+        const allCookies = await chrome.cookies.getAll({domain: ".4399.com"})
         const necessaryNames = ['Puser', 'Uauth', 'Pauth', 'Xauth', 'ptusertype', 'USESSIONID']
         const cookies = allCookies.filter(c => necessaryNames.includes(c.name))
 

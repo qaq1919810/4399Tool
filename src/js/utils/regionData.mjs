@@ -1,6 +1,6 @@
 // noinspection RegExpRedundantEscape
 
-import { shadowFetch } from '#utils/shadowFetch.mjs'
+import {shadowFetch} from '#utils/shadowFetch.mjs'
 
 /**
  * 获取地区数据（每次调用重新获取，不缓存）
@@ -38,9 +38,9 @@ export async function getRegionData() {
 
         if (Object.keys(cities).length === 0) throw new Error('地区数据解析为空')
 
-        return { provinces: Object.keys(cities), cities }
+        return {provinces: Object.keys(cities), cities}
     } catch (error) {
         console.error('[4399管家] 获取地区数据失败:', error)
-        return { provinces: [], cities: {} }
+        return {provinces: [], cities: {}}
     }
 }
