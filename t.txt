@@ -1,0 +1,222 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<script type="text/javascript">
+	dd = document.domain.split('.');
+	document.domain = dd[dd.length - 2] + '.' + dd[dd.length - 1];
+</script>
+<script type="text/javascript" src="//ptlogin.3304399.net/resource/cryptojs-aes.js?v=318"></script> 
+<script type="text/javascript" src="//ptlogin.3304399.net/resource/validation.js?v=318"></script>
+<script type="text/javascript" src="//ptlogin.3304399.net/resource/messenger.js?v=318"></script>
+<link rel="stylesheet" href="//ptlogin.3304399.net/resource/css/init.css?v=318" type="text/css"/>
+<link rel="stylesheet" href="//ptlogin.3304399.net/resource/css/base.css?v=318" type="text/css"/>
+	<link rel="stylesheet" href="https://uc.img4399.com/root/css/ptlogin.css?8928ab0" type="text/css"/>
+</head>
+
+
+
+
+
+
+<body>
+		<div class="login_vertical center vertical_body_w" id="popup_login_div">
+			<form onsubmit="return check_login(username, 'j-password', inputCaptcha, 'Msg');"  id="login_form" name="login_form" method="post" action="/ptlogin/login.do?v=1">
+				<fieldset>
+					<input type="hidden" name="loginFrom" value="uframe" />
+					<input type="hidden" name="postLoginHandler" value="refreshParent" />
+					<input type="hidden" name="layoutSelfAdapting" value="true" />
+					<input type="hidden" name="externalLogin" value="qq" />
+					<input type="hidden" name="displayMode" value="embed" />
+					<input type="hidden" name="layout" value="vertical" />
+					<input type="hidden" name="bizId" value="" />
+					<input type="hidden" name="appId" value="u4399" />
+					<input type="hidden" name="gameId" value="" />
+					<input type="hidden" name="css" value="https://uc.img4399.com/root/css/ptlogin.css?8928ab0" />
+					<input type="hidden" name="redirectUrl" value="" />
+					<input type="hidden" id="sessionId" name="sessionId" value="captchaReq54cd369a7e968358375" />
+					<input type="hidden" name="mainDivId" value="popup_login_div" />
+					<input type="hidden" name="includeFcmInfo" value="false" />
+					<input type="hidden" name="level" value="0" id="j-level"/>
+					<input type="hidden" name="regLevel" value="4"/>
+					
+					<input type="hidden" name="userNameLabel" value="4399&#29992;&#25143;&#21517;" />
+					<input type="hidden" name="userNameTip" value="&#35831;&#36755;&#20837;4399&#29992;&#25143;&#21517;" />
+					<input type="hidden" name="welcomeTip" value="&#27426;&#36814;&#22238;&#21040;4399" />
+
+					<input type="hidden" name="sec" value="1" id="j-sec"/>
+					<input type="hidden" name="password" value="" id="j-psd"/>
+					<input type="hidden" name="iframeId" value="popup_login_frame"/>
+								<div id="Msg" class="login_hor login_err_tip">
+									账号异常，请输入验证码
+								</div>
+
+					<div class="login_hor clearfix">
+						<label id = "lf_label_simple_username">4399&#29992;&#25143;&#21517;<em class="login_required"> *</em></label>
+						<label id = "lf_label_username">4399&#29992;&#25143;&#21517;<em class="login_required"> *</em></label>
+						<input type="text" externalLogin="qq" id="username" name="username" class="login_ipt iptw2" 
+							value="2600260025" 
+							style="color:#000"
+						/>
+					</div>
+					<div id="pass_div" class="login_hor clearfix">
+						<label id = "lf_label_password">密码 <em class="login_required"> *</em></label>
+						<input type="password"  id="j-password"  class="login_ipt iptw2"  onfocus="this.select();"/>
+					</div>
+					
+	<div class="login_hor clearfix">
+		<label id = "label_captcha">验证码<em class="login_required"> *</em></label>
+		<input id="inputCaptcha" type="text" autocomplete="off" name="inputCaptcha" checkstate="err" class="login_ipt iptw2" value="" onfocus="if(this.value=='') this.value = ''; this.select();" onblur="if(this.value=='') {this.value = ''; this.setAttribute('checkstate', 'err');}else{this.setAttribute('checkstate', 'ok');} "/>
+		<img id='captcha' class="login_captcha" src="/ptlogin/captcha.do?captchaId=captchaReq54cd369a7e968358375" onClick="javascript:UniLoginChangPIC('captchaReq54cd369a7e968358375');"/>
+		<span class="input_tip m-change-yzm">点击图片换一张</span>
+	</div>
+					
+					<div class="login_hor ux_login clearfix">
+						<input type="submit" value="" class="ptlogin_btn" id="j-login-submit-btn" />
+						<a id="login_toregister" title="加入4399" href="javascript:eventHandles.showPopupUsernameReg(true);" target="_self">马上注册</a>
+						<a id="login_simple_toregister" title="加入4399" href="javascript:eventHandles.showPopupUsernameReg();" target="_self">注册 </a>
+						<a id="login_forgetPasswd_1" href="http://u.4399.com/do/password/forget" title="忘记密码" target="_blank">忘记密码</a>
+					</div>
+
+					<div class="login_hor clearfix">
+						<div class="login_tip flogin_tip">
+							<input id="login_autoLogin" type="checkbox" name="autoLogin" /><label for="login_autoLogin" id="login_remember_passwd_tip">记住密码</label><label for="login_autoLogin" id="login_autoLogin_tip">自动登录</label>
+						</div>
+						<span class="login_links">
+							<a id="login_forgetPasswd" href="http://u.4399.com/do/password/forget" title="忘记密码" target="_blank">忘记密码</a>
+							<span class="login_links_split">|</span>
+							<a class="login_feedback" href="https://u.4399.com/chat/im/zhkf/zcdl" title="登录问题反馈" target="_blank">登录问题反馈</a>
+						</span>
+					</div>
+				
+				</fieldset>
+			</form>
+			
+				<script type="text/javascript">
+					try{
+						document.login_form.password.focus();
+					} catch (e) {}
+				</script>
+
+			<div id="qq_login" class="login_hor login_qq">
+			    <div class="clearfix folgin">
+					<a id = "hr_label_phonelogin" href='javascript:eventHandles.showPopupPhoneLogin();' title="短信验证码登录" class="phone" target="_self"><i></i>短信验证码登录</a>
+					<a id = "hr_label_qqlogin" href='javascript:eventHandles.toQzoneLogin(true);' title="QQ号登录" class="QQ" target="_self"><i></i>QQ登录</a>
+					<a id = "hr_label_weixinlogin" href='javascript:eventHandles.toWeixinLogin(true);' title="微信登录" class="weixin" target="_self"><i></i>微信登录</a>
+					<a id = "hr_label_weibologin" href='javascript:eventHandles.toWeiboLogin();' title="新浪微博登录" class="weibo" target="_self"><i></i>微博登录</a>
+				</div>
+			</div>
+
+			<a id = "" class="link_reg" href='javascript:eventHandles.showPopupPhoneLogin();' title="加入4399">注册></a>
+		</div>
+
+
+<script type="text/javascript">
+	if(Messenger.shouldOpen){
+		var msnger = new Messenger({ target: window.parent });
+		window.onload = function(){
+			msnger.emit("setIFrameHeight",{iframeId : "popup_login_frame",height:document.body.offsetHeight});
+		}
+	}
+
+
+		String.prototype.zCut = function(len) {
+			var clen = 0, i = 0, olen = this.length;
+			while (clen < len && i < olen) {
+				clen += this.charCodeAt(i++) > 128 ? 2 : 1;
+			}	
+			var newStr = this.substring(0, i);
+			return i < olen ? newStr + '***' : newStr;
+		}
+			
+		var extNick = document.getElementById('ext_nick');
+		if (extNick) {
+			var nick = extNick.innerHTML;
+			extNick.innerHTML = nick.zCut(4);
+		}
+
+		eventHandles.initIFrameReady('popup_login_div');
+		
+			eventHandles.__errorCallback('账号异常，请输入验证码');
+
+			var usernameEle = document.getElementById("username");
+			if (usernameEle) {
+				var prevUsername = usernameEle.value;
+				var executing = false;
+
+				
+				usernameEle.onfocus = function(){
+					if(this.value=='请输入4399账号或手机号'){
+						this.value = '';
+						this.style.color='#000';
+						this.select();
+					}
+				}
+				usernameEle.onblur = function(){
+					if (executing == false) {
+						executing = true;
+					} else {
+						return;
+					}
+
+					var captchaEle = document.getElementById("captcha");
+					if(this.value=="") {
+						this.value = "请输入4399账号或手机号";
+						this.style.color='#afafaf';
+						executing = false;
+					} else {
+						this.style.color='#000';
+						if (!captchaEle) {
+							var username = this.value;
+		
+							if (username == prevUsername) {
+								executing = false;
+								return;
+							}
+		
+							var d = new Date;
+							setTimeout(function(){
+								Ajax().get('/ptlogin/verify.do?username=' + encodeURIComponent(username) + '&appId=' + 'u4399' + '&t=' + d.getTime() + '&inputWidth=iptw2', function(txt){
+										executing = false;
+										prevUsername = username;
+			
+										if (txt != "0") {
+											var sessionInput = document.getElementById("sessionId");
+											
+											// var matchReg = /captchaId=.*?/gi;
+											// var _res = txt.match(matchReg)[0].split("=")[1];
+											// sessionInput.value = _res.substring(0, _res.length - 1);
+											var sessionId = (txt.match(/captchaId=([^'"]+)/) || [])[1] || '';
+											sessionInput.value = sessionId;
+
+											var captchaDiv = document.createElement("div");
+											captchaDiv.innerHTML = txt;
+											captchaDiv.className = "login_hor clearfix";
+											var passDiv = document.getElementById("pass_div");
+											passDiv.parentNode.insertBefore(captchaDiv, passDiv.nextSibling);
+											if(Messenger.shouldOpen){
+												msnger.emit("setIFrameHeight",{iframeId : "popup_login_frame",height:document.body.offsetHeight});
+											}else{
+												var frm = parent.document.activeElement;
+												var subWeb = parent.document.frames ? parent.document.frames[frm.id].document : frm.contentDocument;
+												if(frm && subWeb){
+													try {
+														frm.height = subWeb.body.offsetHeight;
+													} catch (e) {}
+												}
+											}
+										}
+									}
+								)
+							}, 10);
+						}
+					}	
+				}
+			}
+		
+	
+</script>
+	
+<script type="text/javascript" src="//ptlogin.3304399.net/resource/checkCookie.js?v=318"></script>
+</html>

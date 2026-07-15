@@ -2,11 +2,15 @@
 
 import {shadowFetch} from '#utils/shadowFetch.mjs'
 import CryptoJS from 'crypto-js'
+import {Gemini} from '#utils/ai.mjs'
 
 const LOGIN_URL = 'https://ptlogin.4399.com/ptlogin/login.do?v=1'
 const FRAME_URL = 'https://ptlogin.4399.com/ptlogin/phoneLoginFrame.do'
+const CAPTCHA_URL = 'https://ptlogin.4399.com/ptlogin/captcha.do'
 
 const AES_KEY = 'lzYW5qaXVqa'
+const MAX_CAPTCHA_RETRIES = 10
+const MIN_CAPTCHA_DELAY = 500
 
 function encryptPassword(password) {
     return CryptoJS.AES.encrypt(password, AES_KEY).toString()
@@ -71,14 +75,42 @@ function parseCookiesToMap(setCookieHeaders) {
 }
 
 /**
+ * 检测响应是否需要验证码
+ */
+function needCaptcha(html) {
+    return html.includes('验证码')
+}
+
+/**
+ * 从HTML中提取sessionId
+ */
+function extractSessionId(html) {
+    const match = html.match(/captchaId=([a-zA-Z0-9]+)/)
+    return match ? match[1] : null
+}
+
+/**
+ * 延迟指定毫秒
+ */
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+/**
  * 4399 影子登录（双重请求，不污染浏览器 Cookie）
  * @param {string} username - 用户名
  * @param {string} password - 明文密码
- * @returns {Promise<{success: boolean, message?: string, cookies?: Array}>}
+ * @param {string} [apiKey] - Gemini API Key（用于验证码识别）
+ * @returns {Promise<{success: boolean, message?: string, cookies?: Array, username?: string}>}
  */
-export async function login(username, password) {
+export async function login(username, password, apiKey) {
     if (!username || !password) {
         return {success: false, message: '用户名和密码不能为空'}
+    }
+
+    let gemini = null
+    if (apiKey) {
+        gemini = new Gemini(apiKey, 'gemini-3.1-flash-lite')
     }
 
     try {
@@ -135,10 +167,11 @@ export async function login(username, password) {
 
         const encryptedPassword = encryptPassword(password)
 
-        const postBody = new URLSearchParams({
+        // 构建基础表单
+        const baseForm = {
             loginFrom: 'uframe',
             postLoginHandler: 'refreshParent',
-            layoutSelfAdapting: 'false',
+            layoutSelfAdapting: 'true',
             externalLogin: 'qq',
             displayMode: 'embed',
             layout: 'vertical',
@@ -148,7 +181,7 @@ export async function login(username, password) {
             css: 'https://uc.img4399.com/root/css/ptlogin.css?8928ab0',
             redirectUrl: '',
             sessionId: '',
-            mainDivId: 'embed_login_div',
+            mainDivId: 'popup_login_div',
             includeFcmInfo: 'false',
             level: '0',
             regLevel: '4',
@@ -157,9 +190,9 @@ export async function login(username, password) {
             welcomeTip: '欢迎回到4399',
             sec: '1',
             password: encryptedPassword,
-            iframeId: 'embed_login_frame',
+            iframeId: 'popup_login_frame',
             username: username
-        })
+        }
 
         // 拼装风控 Cookie
         const cookieParts = [`USESSIONID=${usessionId}`, 'home4399=yes']
@@ -167,34 +200,90 @@ export async function login(username, password) {
             cookieParts.push(`phlogact=${phlogact}`)
         }
 
-        const loginRes = await shadowFetch(LOGIN_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Cookie': cookieParts.join('; ')
-            },
-            body: postBody.toString()
-        }, {setCookie: false})
+        // 验证码重试循环
+        let lastSessionId = ''
+        let captchaText = ''
 
-        // =========================================================
-        // 第三步：解析登录结果
-        // =========================================================
-        const setCookieHeaders = loginRes.headers.getSetCookie()
-        console.log('[4399管家] 影子登录：响应 Set-Cookie:', setCookieHeaders)
+        for (let attempt = 0; attempt <= MAX_CAPTCHA_RETRIES; attempt++) {
+            const postBody = new URLSearchParams(baseForm)
 
-        if (!setCookieHeaders || setCookieHeaders.length === 0) {
-            console.warn('[4399管家] 影子登录：未获取到登录凭证')
-            return {success: false, message: '登录失败：未获取到 Cookie'}
+            // 如果有验证码，加上 inputCaptcha
+            if (captchaText) {
+                postBody.set('inputCaptcha', captchaText)
+            }
+
+            const loginRes = await shadowFetch(LOGIN_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Cookie': cookieParts.join('; ')
+                },
+                body: postBody.toString()
+            }, {setCookie: false})
+
+            const setCookieHeaders = loginRes.headers.getSetCookie()
+            console.log('[4399管家] 影子登录：响应 Set-Cookie:', setCookieHeaders)
+
+            // 有 Set-Cookie 说明登录成功
+            if (setCookieHeaders && setCookieHeaders.length > 0) {
+                const allCookies = parseSetCookie(setCookieHeaders)
+                console.log('[4399管家] 影子登录：解析后的 Cookie:', allCookies)
+                return {
+                    success: true,
+                    message: '登录成功',
+                    cookies: allCookies,
+                    username: username
+                }
+            }
+
+            // 没有 Set-Cookie，检查是否需要验证码
+            const html = await loginRes.text()
+            console.log('[4399管家] 影子登录：响应HTML前500字符:', html.substring(0, 500))
+            if (!needCaptcha(html)) {
+                console.warn('[4399管家] 影子登录：未知错误，无 Cookie 且无验证码提示')
+                return {success: false, message: '登录失败：未知错误'}
+            }
+
+            // 没有 API Key 无法识别验证码
+            if (!gemini) {
+                return {success: false, message: '需要验证码但未提供 API Key'}
+            }
+
+            // 提取 sessionId
+            const sessionId = extractSessionId(html)
+            if (!sessionId) {
+                console.error('[4399管家] 影子登录：无法提取验证码 sessionId')
+                return {success: false, message: '无法提取验证码 ID'}
+            }
+
+            // 更新 baseForm 中的 sessionId
+            baseForm.sessionId = sessionId
+            lastSessionId = sessionId
+            console.log(`[4399管家] 影子登录：需要验证码 (attempt ${attempt + 1}/${MAX_CAPTCHA_RETRIES}), sessionId=${sessionId}`)
+
+            // 获取验证码图片
+            const captchaRes = await shadowFetch(`${CAPTCHA_URL}?captchaId=${sessionId}`, {
+                method: 'GET'
+            }, {setCookie: false})
+
+            const captchaBlob = await captchaRes.blob()
+            console.log('[4399管家] 影子登录：验证码图片获取成功', captchaBlob.size, 'bytes')
+
+            // AI 识别（记录开始时间，保证至少 500ms）
+            const startTime = Date.now()
+            const captchaResult = await gemini.chat('这是一个验证码图片，这个验证码一定是4个字符，一定只包含数字和字母（可能纯数字，可能纯字母），你的回答只能是干净的结果比如“xxxx”（不要给我回答带引号），回单不要包含md语法不要有空格，我只要四个字符', [captchaBlob])
+            const elapsed = Date.now() - startTime
+
+            captchaText = captchaResult.trim()
+            console.log(`[4399管家] 影子登录：验证码识别结果="${captchaText}", 耗时=${elapsed}ms`)
+
+            // 如果识别太快，补足 500ms
+            if (elapsed < MIN_CAPTCHA_DELAY) {
+                await sleep(MIN_CAPTCHA_DELAY - elapsed)
+            }
         }
 
-        const allCookies = parseSetCookie(setCookieHeaders)
-        console.log('[4399管家] 影子登录：解析后的 Cookie:', allCookies)
-
-        return {
-            success: true,
-            message: '登录成功',
-            cookies: allCookies
-        }
+        return {success: false, message: `验证码错误重试 ${MAX_CAPTCHA_RETRIES} 次后失败`}
     } catch (error) {
         console.error('[4399管家] 影子登录异常:', error)
         return {success: false, message: error.message || '网络错误'}

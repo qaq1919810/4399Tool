@@ -2,10 +2,22 @@
   <div class="batch-import">
     <h3>批量导入</h3>
 
+    <!-- API Key 配置 -->
+    <div class="api-key-section">
+      <el-input
+        v-model="apiKey"
+        type="password"
+        placeholder="Gemini API Key"
+        show-password
+        style="flex: 1"
+      />
+      <el-button type="primary" @click="saveApiKey">保存</el-button>
+    </div>
+
     <el-input
       v-model="rawData"
       type="textarea"
-      :rows="10"
+      :rows="8"
       placeholder="粘贴散数据（账号密码混杂文本）"
     />
 
@@ -26,7 +38,7 @@
 </template>
 
 <script setup>
-import {ref} from 'vue'
+import {onMounted, ref} from 'vue'
 import {ElMessage} from 'element-plus'
 import {login} from '#features/login.mjs'
 import getUserInfo, {getModifyPageInfo} from '#features/getUserInfo.mjs'
@@ -34,6 +46,23 @@ import getUserInfo, {getModifyPageInfo} from '#features/getUserInfo.mjs'
 const rawData = ref('')
 const outputData = ref('')
 const importing = ref(false)
+const apiKey = ref('')
+
+onMounted(async () => {
+  const wrapper = await chrome.storage.local.get('aiApiKey')
+  if (wrapper.aiApiKey) {
+    apiKey.value = wrapper.aiApiKey
+  }
+})
+
+async function saveApiKey() {
+  if (!apiKey.value.trim()) {
+    ElMessage.warning('请输入 API Key')
+    return
+  }
+  await chrome.storage.local.set({aiApiKey: apiKey.value.trim()})
+  ElMessage.success('API Key 已保存')
+}
 
 /**
  * 从杂乱的文本中提取账号和密码
@@ -66,6 +95,22 @@ function convert() {
   }
 }
 
+/**
+ * 从输出框的JSON中删除指定账号
+ */
+function removeAccountFromOutput(username) {
+  try {
+    const accounts = JSON.parse(outputData.value)
+    const idx = accounts.findIndex(a => a.username === username)
+    if (idx !== -1) {
+      accounts.splice(idx, 1)
+      outputData.value = accounts.length > 0 ? JSON.stringify(accounts, null, 2) : ''
+    }
+  } catch {
+    // JSON 解析失败则忽略
+  }
+}
+
 async function acceptAndLogin() {
   let accounts
   try {
@@ -79,6 +124,11 @@ async function acceptAndLogin() {
     return
   }
 
+  if (!apiKey.value.trim()) {
+    ElMessage.warning('请先配置 API Key')
+    return
+  }
+
   importing.value = true
   let success = 0
   let fail = 0
@@ -86,12 +136,18 @@ async function acceptAndLogin() {
   const wrapper = await chrome.storage.local.get('info')
   const info = wrapper.info || {}
 
-  for (const acc of accounts) {
-    try {
-      const result = await login(acc.username, acc.password)
-      if (result.success) {
+  // 并发登录所有账号（验证码各自并行处理）
+  const tasks = accounts.map(acc => login(acc.username, acc.password, apiKey.value.trim()))
+  const results = await Promise.allSettled(tasks)
+
+  for (let i = 0; i < results.length; i++) {
+    const result = results[i]
+    const acc = accounts[i]
+
+    if (result.status === 'fulfilled' && result.value.success) {
+      try {
         const necessaryCookies = ['Puser', 'Uauth', 'Pauth', 'Xauth', 'ptusertype']
-        const savedCookies = result.cookies.filter(c => necessaryCookies.includes(c.name))
+        const savedCookies = result.value.cookies.filter(c => necessaryCookies.includes(c.name))
 
         const puserCookie = savedCookies.find(c => c.name === 'Puser')
         if (!puserCookie) {
@@ -112,10 +168,11 @@ async function acceptAndLogin() {
         }
 
         success++
-      } else {
+        removeAccountFromOutput(acc.username)
+      } catch {
         fail++
       }
-    } catch {
+    } else {
       fail++
     }
   }
@@ -134,6 +191,12 @@ async function acceptAndLogin() {
 
 .batch-import h3 {
   margin: 0 0 16px 0;
+}
+
+.api-key-section {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
 .btn-group {
