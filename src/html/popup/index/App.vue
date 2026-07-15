@@ -1,17 +1,18 @@
 <template>
   <div class="app">
     <div class="header">
-      <h2>🎮 4399 账号管家</h2>
+      <h2>4399 账号管家</h2>
       <div class="header-btns">
         <el-button size="small" type="success" @click="showLoginDialog = true">🔑 登录</el-button>
         <el-button size="small" type="primary" @click="showCreateFolder = true">+ 文件夹</el-button>
       </div>
     </div>
+    <el-divider style="margin: 8px 0"/>
 
     <!-- 顶部操作栏 -->
     <div class="top-actions">
       <el-button type="primary" :disabled="!auth" @click="saveCurrentAccount" class="btn-save">
-        {{ auth ? '💾 保存/更新当前账号' : '❌ 未登录' }}
+        {{ auth ? '保存/更新当前账号' : '❌ 未登录' }}
       </el-button>
       <el-button type="warning" @click="refreshAll" :loading="refreshing" class="btn-refresh">
         全部刷新
@@ -258,10 +259,29 @@
           <el-input v-model="loginForm.password" type="password" placeholder="密码" show-password
                     @keyup.enter="handleLogin"/>
         </el-form-item>
+        <el-form-item label="API Key">
+          <div style="display: flex; gap: 8px; width: 100%">
+            <el-input v-model="loginApiKey" type="password" placeholder="Gemini API Key（可选）" show-password
+                      style="flex: 1"/>
+            <el-button @click="saveLoginApiKey">保存</el-button>
+          </div>
+        </el-form-item>
+        <el-form-item label="验证码">
+          <el-checkbox v-model="manualCaptcha">手动输入验证码</el-checkbox>
+        </el-form-item>
+        <el-form-item v-if="showCaptchaInput" label="验证码">
+          <div class="captcha-section">
+            <img :src="captchaImageUrl" class="captcha-img" @click="refreshCaptcha"/>
+            <el-input v-model="loginCaptcha" placeholder="输入验证码" @keyup.enter="handleCaptchaLogin"/>
+          </div>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="showLoginDialog = false">取消</el-button>
-        <el-button type="primary" @click="handleLogin" :loading="loginLoading">登录</el-button>
+        <el-button v-if="showCaptchaInput" type="primary" @click="handleCaptchaLogin" :loading="loginLoading">
+          验证码登录
+        </el-button>
+        <el-button v-else type="primary" @click="handleLogin" :loading="loginLoading">登录</el-button>
       </template>
     </el-dialog>
   </div>
@@ -282,7 +302,7 @@ import {
 } from '#features/folderManager.mjs'
 import {getCurrentUserAuth} from '#features/getCurrentUserAuth.mjs'
 import getUserInfo, {getModifyPageInfo} from '#features/getUserInfo.mjs'
-import {login} from '#features/login.mjs'
+import {login, loginWithCaptcha} from '#features/login.mjs'
 import windowManager from '#utils/windowManager.mjs'
 
 // ====== 状态 ======
@@ -293,10 +313,16 @@ const folderTree = ref([])
 const selectedUsers = ref([])
 const refreshing = ref(false)
 
-// 登录
+// 登录相关状态
 const showLoginDialog = ref(false)
 const loginLoading = ref(false)
 const loginForm = ref({username: '', password: ''})
+const loginApiKey = ref('')
+const manualCaptcha = ref(false)
+const showCaptchaInput = ref(false)
+const loginCaptcha = ref('')
+const loginSessionId = ref('')
+const captchaImageUrl = ref('')
 
 // 创建文件夹
 const showCreateFolder = ref(false)
@@ -396,6 +422,15 @@ function toggleFolderSelect(folderId) {
   }
 }
 
+async function saveLoginApiKey() {
+  if (!loginApiKey.value.trim()) {
+    ElMessage.warning('请输入 API Key')
+    return
+  }
+  await chrome.storage.local.set({aiApiKey: loginApiKey.value.trim()})
+  ElMessage.success('API Key 已保存')
+}
+
 async function handleLogin() {
   if (!loginForm.value.username || !loginForm.value.password) {
     ElMessage.warning('请输入账号和密码')
@@ -403,52 +438,126 @@ async function handleLogin() {
   }
 
   loginLoading.value = true
-  const result = await login(loginForm.value.username, loginForm.value.password)
+  showCaptchaInput.value = false
+
+  // 第一次尝试登录
+  const result = await login(loginForm.value.username, loginForm.value.password, {
+    apiKey: manualCaptcha.value ? '' : loginApiKey.value.trim(),
+    captchaText: manualCaptcha.value ? '' : ''
+  })
+
+  // 需要验证码
+  if (result.needCaptcha) {
+    if (manualCaptcha.value) {
+      // 手动模式：显示验证码输入框和图片
+      loginSessionId.value = result.sessionId
+      captchaImageUrl.value = `https://ptlogin.4399.com/ptlogin/captcha.do?captchaId=${result.sessionId}`
+      showCaptchaInput.value = true
+      loginLoading.value = false
+      ElMessage.info('请输入验证码后再次点击登录')
+      return
+    } else {
+      // AI 模式但没有 apiKey
+      loginLoading.value = false
+      ElMessage.error('需要验证码但未配置 API Key')
+      return
+    }
+  }
+
+  // 登录成功
+  if (result.success) {
+    await saveLoginResult(result)
+  } else {
+    loginLoading.value = false
+    ElMessage.error(result.message || '登录失败')
+  }
+}
+
+// 验证码登录（手动输入后调用）
+async function handleCaptchaLogin() {
+  if (!loginCaptcha.value.trim()) {
+    ElMessage.warning('请输入验证码')
+    return
+  }
+
+  loginLoading.value = true
+  const result = await loginWithCaptcha(
+    loginForm.value.username,
+    loginForm.value.password,
+    loginSessionId.value,
+    loginCaptcha.value.trim()
+  )
   loginLoading.value = false
 
   if (result.success) {
-    // 过滤必要 cookie
-    const necessaryCookies = ['Puser', 'Uauth', 'Pauth', 'Xauth', 'ptusertype']
-    const savedCookies = result.cookies.filter(c => necessaryCookies.includes(c.name))
-
-    // 获取 Puser 作为账号 ID
-    const puserCookie = savedCookies.find(c => c.name === 'Puser')
-    if (!puserCookie) {
-      ElMessage.error('登录失败：未获取到用户 ID')
-      return
-    }
-
-    const puser = puserCookie.value
-
-    // 用这些 cookie 获取用户信息
-    ElMessage.info('正在获取用户信息...')
-    const userInfo = await getUserInfo(puser, savedCookies)
-    const modifyInfo = await getModifyPageInfo(savedCookies)
-
-    // 读取现有数据
-    const wrapper = await chrome.storage.local.get('info')
-    const info = wrapper.info || {}
-
-    // 保存到插件存储
-    info[puser] = {
-      ...(userInfo || {}),
-      puser,
-      cookies: savedCookies,
-      email: modifyInfo?.email || '',
-      qq: modifyInfo?.qq || ''
-    }
-
-    await chrome.storage.local.set({info})
-
-    ElMessage.success('登录成功！账号已保存')
-    showLoginDialog.value = false
-    loginForm.value = {username: '', password: ''}
-
-    // 刷新列表
-    await refreshData()
+    await saveLoginResult(result)
   } else {
-    ElMessage.error(result.message || '登录失败')
+    ElMessage.error(result.message || '验证码登录失败')
+    // 清空验证码输入，让用户重试
+    loginCaptcha.value = ''
+    showCaptchaInput.value = false
   }
+}
+
+function refreshCaptcha() {
+  // 点击刷新验证码图片（URL不变，图片会变）
+  captchaImageUrl.value = `https://ptlogin.4399.com/ptlogin/captcha.do?captchaId=${loginSessionId.value}&t=${Date.now()}`
+}
+
+// 保存登录结果
+async function saveLoginResult(result) {
+  // 过滤必要 cookie
+  const necessaryCookies = ['Puser', 'Uauth', 'Pauth', 'Xauth', 'ptusertype']
+  const savedCookies = result.cookies.filter(c => necessaryCookies.includes(c.name))
+
+  // 获取 Puser 作为账号 ID
+  const puserCookie = savedCookies.find(c => c.name === 'Puser')
+  if (!puserCookie) {
+    ElMessage.error('登录失败：未获取到用户 ID')
+    loginLoading.value = false
+    return
+  }
+
+  const puser = puserCookie.value
+
+  // 用这些 cookie 获取用户信息
+  ElMessage.info('正在获取用户信息...')
+  const userInfo = await getUserInfo(puser, savedCookies)
+  const modifyInfo = await getModifyPageInfo(savedCookies)
+
+  // 读取现有数据
+  const wrapper = await chrome.storage.local.get('info')
+  const info = wrapper.info || {}
+
+  // 保留原有的 parentFolderId
+  const existingFolderId = info[puser]?.parentFolderId
+
+  // 保存到插件存储
+  info[puser] = {
+    ...(userInfo || {}),
+    puser,
+    cookies: savedCookies,
+    email: modifyInfo?.email || '',
+    qq: modifyInfo?.qq || ''
+  }
+
+  // 如果原来有文件夹位置，保留
+  if (existingFolderId !== undefined) {
+    info[puser].parentFolderId = existingFolderId
+  }
+
+  await chrome.storage.local.set({info})
+
+  loginLoading.value = false
+  ElMessage.success('登录成功！账号已保存')
+  showLoginDialog.value = false
+  loginForm.value = {username: '', password: ''}
+  loginCaptcha.value = ''
+  showCaptchaInput.value = false
+  captchaImageUrl.value = ''
+
+  // 刷新列表
+  await refreshData()
 }
 
 async function refreshData() {
@@ -479,7 +588,17 @@ async function saveCurrentAccount() {
 
   const wrapper = await chrome.storage.local.get('info')
   const info = wrapper.info || {}
+
+  // 保留原有的 parentFolderId
+  const existingFolderId = info[userData.puser]?.parentFolderId
+
   info[userData.puser] = userData
+
+  // 如果原来有文件夹位置，保留
+  if (existingFolderId !== undefined) {
+    info[userData.puser].parentFolderId = existingFolderId
+  }
+
   await chrome.storage.local.set({info})
 
   auth.value = btnAuth
@@ -679,6 +798,12 @@ onMounted(async () => {
     }
   })
 
+  // 加载 API Key
+  const wrapper = await chrome.storage.local.get('aiApiKey')
+  if (wrapper.aiApiKey) {
+    loginApiKey.value = wrapper.aiApiKey
+  }
+
   auth.value = await getCurrentUserAuth()
   await refreshData()
   loading.value = false
@@ -827,5 +952,19 @@ body {
   justify-content: flex-end;
   gap: 8px;
   margin-top: 12px;
+}
+
+.captcha-section {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+}
+
+.captcha-img {
+  height: 32px;
+  cursor: pointer;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
 }
 </style>

@@ -137,7 +137,9 @@ async function acceptAndLogin() {
   const info = wrapper.info || {}
 
   // 并发登录所有账号（验证码各自并行处理）
-  const tasks = accounts.map(acc => login(acc.username, acc.password, apiKey.value.trim()))
+  const tasks = accounts.map(acc => login(acc.username, acc.password, {
+    apiKey: apiKey.value.trim()
+  }))
   const results = await Promise.allSettled(tasks)
 
   for (let i = 0; i < results.length; i++) {
@@ -159,12 +161,20 @@ async function acceptAndLogin() {
         const userInfo = await getUserInfo(puser, savedCookies)
         const modifyInfo = await getModifyPageInfo(savedCookies)
 
+        // 保留原有的 parentFolderId
+        const existingFolderId = info[puser]?.parentFolderId
+
         info[puser] = {
           ...(userInfo || {}),
           puser,
           cookies: savedCookies,
           email: modifyInfo?.email || '',
           qq: modifyInfo?.qq || ''
+        }
+
+        // 如果原来有文件夹位置，保留
+        if (existingFolderId !== undefined) {
+          info[puser].parentFolderId = existingFolderId
         }
 
         success++

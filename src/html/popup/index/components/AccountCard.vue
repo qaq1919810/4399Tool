@@ -20,7 +20,7 @@
         切换
       </el-button>
       <el-dropdown @command="handleCommand" trigger="click">
-        <el-button size="small" text type="info">⋮</el-button>
+        <el-button size="default" text type="info" class="more-btn">⋮</el-button>
         <template #dropdown>
           <el-dropdown-menu>
             <el-dropdown-item command="edit">✏️ 修改</el-dropdown-item>
@@ -360,6 +360,13 @@ async function handleSaveEdit() {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.more-btn {
+  width: 100%;
+  font-size: 16px;
+  height: 32px;
+  background-color: #f0f0f0;
 }
 
 .edit-form {
