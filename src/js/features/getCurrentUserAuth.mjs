@@ -10,14 +10,15 @@ export async function getCurrentUserAuth() {
         const necessaryNames = ['Puser', 'Uauth', 'Pauth', 'Xauth', 'ptusertype', 'USESSIONID']
         const cookies = allCookies.filter(c => necessaryNames.includes(c.name))
 
-        const puserCookie = cookies.find(c => c.name === 'Puser')
-        if (!puserCookie) {
-            console.warn("[4399管家] 未找到 Puser Cookie，用户未登录")
+        const cookieMap = new Map(cookies.map(cookie => [cookie.name, cookie]))
+        const requiredNames = ['Puser', 'Uauth', 'Pauth', 'Xauth']
+        if (!requiredNames.every(name => cookieMap.get(name)?.value)) {
+            console.warn("[4399管家] 登录 Cookie 不完整，用户未登录或登录状态已失效")
             return null
         }
 
         return {
-            puser: puserCookie.value,
+            puser: cookieMap.get('Puser').value,
             cookies
         }
     } catch (error) {

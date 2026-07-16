@@ -480,9 +480,24 @@ async function toggleFolderSortDirection() {
 async function saveCurrentAccount() {
   // 重新检测当前登录账号，不依赖缓存的 auth.value
   const btnAuth = await getCurrentUserAuth()
-  if (!btnAuth) return
+  if (!btnAuth) {
+    auth.value = null
+    ElMessage.warning('当前没有登录账号')
+    return
+  }
 
   ElMessage.info('正在抓取账号数据...')
+
+  const modifyInfo = await getModifyPageInfo(btnAuth.cookies)
+  if (modifyInfo.isLoggedIn === false) {
+    auth.value = null
+    ElMessage.warning('当前没有登录账号')
+    return
+  }
+  if (modifyInfo.isLoggedIn === null) {
+    ElMessage.error('无法确认当前登录状态，请稍后重试')
+    return
+  }
 
   const userData = await getUserInfo(btnAuth.puser, btnAuth.cookies)
   if (!userData) {
@@ -490,8 +505,6 @@ async function saveCurrentAccount() {
     return
   }
 
-  // 获取修改页面的邮箱和QQ
-  const modifyInfo = await getModifyPageInfo(btnAuth.cookies)
   userData.email = modifyInfo.email
   userData.qq = modifyInfo.qq
 

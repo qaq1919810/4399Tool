@@ -154,7 +154,7 @@ export default async function getUserInfo(username, cookies = null) {
 /**
  * 获取修改页面的邮箱和QQ（纯文本，掩码形式）
  * @param {Array} cookies - 可选，指定使用的 cookies
- * @returns {Promise<Object>} { email, qq }
+ * @returns {Promise<Object>} { email, qq, isLoggedIn }
  */
 export async function getModifyPageInfo(cookies = null) {
     try {
@@ -171,11 +171,20 @@ export async function getModifyPageInfo(cookies = null) {
 
         const html = await response.text()
         const doc = new DOMParser().parseFromString(html, 'text/html')
+        const location = response.headers.get('location') || ''
+        const profileForm = doc.querySelector('form#uInfo')
+        const isLoginPage = location.includes('/login.html')
+            || Boolean(doc.querySelector('#j-unlogin'))
+            || !profileForm?.querySelector('input[name="__HASH__"]')
+
+        if (isLoginPage) {
+            return {email: '', qq: '', isLoggedIn: false}
+        }
 
         let email = ''
         let qq = ''
 
-        doc.querySelectorAll('.t_f tr').forEach(row => {
+        profileForm.querySelectorAll('.t_f tr').forEach(row => {
             const label = row.querySelector('.label')?.innerText.trim()
             const value = row.querySelector('.input')?.innerText.trim() || ''
             const clean = value.includes('<未填写>') ? '' : value
@@ -184,9 +193,9 @@ export async function getModifyPageInfo(cookies = null) {
             if (label === 'QQ :') qq = clean
         })
 
-        return {email, qq}
+        return {email, qq, isLoggedIn: true}
     } catch (error) {
         console.error("[4399管家] 获取修改页面信息失败:", error)
-        return {email: '', qq: ''}
+        return {email: '', qq: '', isLoggedIn: null}
     }
 }
