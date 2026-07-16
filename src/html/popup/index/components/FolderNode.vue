@@ -67,6 +67,10 @@
             @refresh="puser => emit('refresh-user', puser)"
             @delete="puser => emit('delete-user', puser)"
             @move="(puser, folderId) => emit('move-user', puser, folderId)"
+            @save-remark="(puser, remark) => emit('save-remark', puser, remark)"
+            @record-password="(puser, password, done) => emit('record-password', puser, password, done)"
+            @copy-password="puser => emit('copy-password', puser)"
+            @delete-password="puser => emit('delete-password', puser)"
         />
       </div>
 
@@ -85,6 +89,10 @@
             @refresh-user="puser => emit('refresh-user', puser)"
             @delete-user="puser => emit('delete-user', puser)"
             @move-user="(puser, folderId) => emit('move-user', puser, folderId)"
+            @save-remark="(puser, remark) => emit('save-remark', puser, remark)"
+            @record-password="(puser, password, done) => emit('record-password', puser, password, done)"
+            @copy-password="puser => emit('copy-password', puser)"
+            @delete-password="puser => emit('delete-password', puser)"
             @rename-folder="target => emit('rename-folder', target)"
             @move-folder="(target, parentId) => emit('move-folder', target, parentId)"
             @open-delete="folderId => emit('open-delete', folderId)"
@@ -120,6 +128,10 @@ const emit = defineEmits([
   'refresh-user',
   'delete-user',
   'move-user',
+  'save-remark',
+  'record-password',
+  'copy-password',
+  'delete-password',
   'rename-folder',
   'move-folder',
   'open-delete',

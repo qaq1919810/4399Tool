@@ -3,8 +3,8 @@
     <h2>数据备份与导入</h2>
 
     <el-alert
-        :title="backupCompletedThisSession ? '本次已成功保存备份，可以执行导入' : '导入前必须在本窗口成功保存一次备份'"
-        :type="backupCompletedThisSession ? 'success' : 'warning'"
+        :title="importPermissionMessage"
+        :type="importAllowed ? 'success' : 'warning'"
         :closable="false"
         show-icon
     />
@@ -52,7 +52,7 @@
           />
           <el-button type="primary" @click="requestImportFile">选择备份文件</el-button>
           <span class="file-hint">
-            {{ backupCompletedThisSession ? '请选择要导入的 JSON 备份文件' : '请先在本窗口成功保存一次备份' }}
+            {{ importAllowed ? '请选择要导入的 JSON 备份文件' : '请先在本窗口成功保存一次备份' }}
           </span>
         </div>
 
@@ -124,7 +124,7 @@ import {systemNotification} from '#utils/notify.mjs'
 const activeTab = ref('backup')
 const backupSections = ref(['apiKey', 'info'])
 const importSections = ref(['apiKey', 'info'])
-const storageSummary = reactive({accountKeys: [], hasApiKey: false})
+const storageSummary = reactive({accountKeys: [], hasApiKey: false, isBaseState: false})
 const backupCompletedThisSession = ref(false)
 const backingUp = ref(false)
 const importing = ref(false)
@@ -180,20 +180,34 @@ function handleDialogBeforeClose(done) {
 }
 
 const importAccountKeys = computed(() => Object.keys(importDocument.value?.data?.info || {}))
-const importHasApiKey = computed(() => Object.hasOwn(importDocument.value?.data || {}, 'aiApiKey'))
+const importHasApiKey = computed(() =>
+    typeof importDocument.value?.data?.aiApiKey === 'string' && importDocument.value.data.aiApiKey.length > 0
+)
 const allBackupAccountsSelected = computed(() =>
     storageSummary.accountKeys.length > 0 && backupOptions.accountKeys.length === storageSummary.accountKeys.length
 )
 const allImportAccountsSelected = computed(() =>
     importAccountKeys.value.length > 0 && importOptions.accountKeys.length === importAccountKeys.value.length
 )
+const importAllowed = computed(() => backupCompletedThisSession.value || storageSummary.isBaseState)
+const importPermissionMessage = computed(() => {
+  if (backupCompletedThisSession.value) return '本次已成功保存备份，可以执行导入'
+  if (storageSummary.isBaseState) return '当前为基础空状态，可以直接导入备份'
+  return '导入前必须在本窗口成功保存一次备份'
+})
 
 async function loadSummary() {
   const summary = await BackupManager.getStorageSummary()
   storageSummary.accountKeys = summary.accountKeys
   storageSummary.hasApiKey = summary.hasApiKey
+  storageSummary.isBaseState = summary.isBaseState
   backupOptions.includeApiKey = summary.hasApiKey
   backupOptions.accountKeys = [...summary.accountKeys]
+}
+
+async function verifyImportPermission() {
+  await loadSummary()
+  return importAllowed.value
 }
 
 function toggleAllBackupAccounts() {
@@ -241,7 +255,7 @@ async function exportFullBackup() {
 }
 
 async function requestImportFile() {
-  if (!backupCompletedThisSession.value) {
+  if (!await verifyImportPermission()) {
     await showDialog('本次进入页面后尚未成功保存备份，不允许选择导入文件，请先完成备份', '需要先备份', 'warning')
     activeTab.value = 'backup'
     return
@@ -251,7 +265,7 @@ async function requestImportFile() {
 }
 
 async function handleFileSelected(event) {
-  if (!backupCompletedThisSession.value) {
+  if (!await verifyImportPermission()) {
     event.target.value = ''
     await showDialog('尚未成功保存本次备份，不能读取导入文件', '需要先备份', 'warning')
     activeTab.value = 'backup'
@@ -275,7 +289,7 @@ async function handleFileSelected(event) {
 }
 
 async function performImport() {
-  if (!backupCompletedThisSession.value) {
+  if (!await verifyImportPermission()) {
     await showDialog('本次进入页面后尚未成功保存备份，请先完成备份', '需要先备份', 'warning')
     activeTab.value = 'backup'
     return
@@ -304,7 +318,9 @@ async function performImport() {
       includeInfo: importOptions.includeInfo,
       accountKeys: [...importOptions.accountKeys]
     })
-    const result = await FolderManager.importStorage(selectedData, importMode.value)
+    const result = await FolderManager.importStorage(selectedData, importMode.value, {
+      includeApiKey: importOptions.includeApiKey
+    })
     await systemNotification(
         `导入完成：新增 ${result.added}，覆盖 ${result.overwritten}，保留 ${result.preserved}`,
         '导入成功'

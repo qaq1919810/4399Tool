@@ -28,6 +28,10 @@
       </el-button>
     </div>
 
+    <el-checkbox v-model="savePasswords" class="save-passwords">
+      保存成功登录账号的密码
+    </el-checkbox>
+
     <el-input
       v-model="outputData"
       type="textarea"
@@ -43,11 +47,13 @@ import {ElMessage} from 'element-plus'
 import {login} from '#features/login.mjs'
 import getUserInfo, {getModifyPageInfo} from '#features/getUserInfo.mjs'
 import FolderManager from '#features/folderManager.mjs'
+import {encryptPassword} from '#utils/passwordCrypto.mjs'
 
 const rawData = ref('')
 const outputData = ref('')
 const importing = ref(false)
 const apiKey = ref('')
+const savePasswords = ref(false)
 
 onMounted(async () => {
   const savedApiKey = await FolderManager.getApiKey()
@@ -166,7 +172,8 @@ async function acceptAndLogin() {
           puser,
           cookies: savedCookies,
           email: modifyInfo?.email || '',
-          qq: modifyInfo?.qq || ''
+          qq: modifyInfo?.qq || '',
+          ...(savePasswords.value ? {password: encryptPassword(acc.password)} : {})
         })
 
         success++
@@ -205,5 +212,9 @@ async function acceptAndLogin() {
   display: flex;
   gap: 12px;
   margin: 12px 0;
+}
+
+.save-passwords {
+  margin-bottom: 12px;
 }
 </style>

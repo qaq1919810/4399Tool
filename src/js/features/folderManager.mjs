@@ -1,5 +1,8 @@
 // noinspection SpellCheckingInspection
 
+import {normalizeAccount, parseStorage} from '#features/storageSchema.mjs'
+import {decryptPassword, encryptPassword} from '#utils/passwordCrypto.mjs'
+
 /**
  * 文件夹和账号存储管理器。
  *
@@ -126,7 +129,7 @@ export default class FolderManager {
      * @returns {Promise<string>}
      */
     static async getApiKey() {
-        const {aiApiKey = ''} = await chrome.storage.local.get('aiApiKey')
+        const {aiApiKey = null} = await chrome.storage.local.get('aiApiKey')
         return aiApiKey
     }
 
@@ -144,7 +147,7 @@ export default class FolderManager {
      */
     static async clearApiKey() {
         return navigator.locks.request(this.#LOCK_NAME, () =>
-            chrome.storage.local.remove('aiApiKey')
+            chrome.storage.local.set({aiApiKey: null})
         )
     }
 
@@ -204,11 +207,10 @@ export default class FolderManager {
         return this.#updateStorage([this.#INFO_KEY], ({info}) => {
             for (const account of accounts) {
                 if (!account?.puser) continue
-                const existingFolderId = info[account.puser]?.parentFolderId
-                info[account.puser] = {...account}
-                if (preserveFolder && existingFolderId !== undefined) {
-                    info[account.puser].parentFolderId = existingFolderId
-                }
+                const existing = info[account.puser] || null
+                const normalized = normalizeAccount(account, existing)
+                if (!preserveFolder) normalized.parentFolderId = account.parentFolderId ?? null
+                info[account.puser] = normalized
             }
         })
     }
@@ -222,7 +224,7 @@ export default class FolderManager {
     static async patchAccount(puser, patch) {
         return this.#updateStorage([this.#INFO_KEY], ({info}) => {
             if (!info[puser]) return false
-            info[puser] = {...info[puser], ...patch}
+            info[puser] = normalizeAccount({...info[puser], ...patch}, info[puser])
             return true
         })
     }
@@ -237,7 +239,7 @@ export default class FolderManager {
             let updated = 0
             for (const [puser, patch] of Object.entries(patches)) {
                 if (!info[puser]) continue
-                info[puser] = {...info[puser], ...patch}
+                info[puser] = normalizeAccount({...info[puser], ...patch}, info[puser])
                 updated++
             }
             return updated
@@ -271,6 +273,42 @@ export default class FolderManager {
                 deleted++
             }
             return deleted
+        })
+    }
+
+    /**
+     * 设置账号备注。空白备注会保存为 null。
+     */
+    static async setAccountRemark(puser, remark) {
+        return this.#updateStorage([this.#INFO_KEY], ({info}) => {
+            if (!info[puser]) return false
+            const normalizedRemark = typeof remark === 'string' ? remark.trim() : ''
+            info[puser].remark = normalizedRemark || null
+            return true
+        })
+    }
+
+    static async getAccountPassword(puser) {
+        const accounts = await this.getAccounts()
+        const password = accounts[puser]?.password ?? null
+        return decryptPassword(password)
+    }
+
+    static async setAccountPassword(puser, password) {
+        const encryptedPassword = encryptPassword(password)
+        if (!encryptedPassword) throw new TypeError('密码不能为空')
+        return this.#updateStorage([this.#INFO_KEY], ({info}) => {
+            if (!info[puser]) return false
+            info[puser].password = encryptedPassword
+            return true
+        })
+    }
+
+    static async deleteAccountPassword(puser) {
+        return this.#updateStorage([this.#INFO_KEY], ({info}) => {
+            if (!info[puser]) return false
+            info[puser].password = null
+            return true
         })
     }
 
@@ -397,18 +435,23 @@ export default class FolderManager {
      * 导入筛选后的备份数据。
      * mode: replace | append-overwrite | append-preserve
      */
-    static async importStorage(importedData, mode) {
+    static async importStorage(importedData, mode, {includeApiKey = true} = {}) {
         if (!['replace', 'append-overwrite', 'append-preserve'].includes(mode)) {
             throw new TypeError('未知导入模式')
         }
 
+        const storageData = structuredClone(importedData)
+        for (const account of Object.values(storageData.info || {})) {
+            account.password = encryptPassword(account.password)
+        }
+        const validatedData = parseStorage(storageData)
         return navigator.locks.request(this.#LOCK_NAME, async () => {
-            const importedInfo = structuredClone(importedData.info || {})
-            const importedFolders = structuredClone(importedData.userInfoFolder || [])
+            const importedInfo = structuredClone(validatedData.info)
+            const importedFolders = structuredClone(validatedData.userInfoFolder)
 
             if (mode === 'replace') {
                 await chrome.storage.local.clear()
-                await chrome.storage.local.set(structuredClone(importedData))
+                await chrome.storage.local.set(structuredClone(validatedData))
                 return {
                     added: Object.keys(importedInfo).length,
                     overwritten: 0,
@@ -453,10 +496,8 @@ export default class FolderManager {
                 info: currentInfo,
                 userInfoFolder: currentFolders
             }
-            if (Object.hasOwn(importedData, 'aiApiKey')) {
-                if (mode === 'append-overwrite' || !Object.hasOwn(current, 'aiApiKey')) {
-                    changes.aiApiKey = importedData.aiApiKey
-                }
+            if (includeApiKey && (mode === 'append-overwrite' || current.aiApiKey === null)) {
+                changes.aiApiKey = validatedData.aiApiKey
             }
             await chrome.storage.local.set(changes)
             return {added, overwritten, preserved}

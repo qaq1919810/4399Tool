@@ -1,12 +1,24 @@
+// noinspection DuplicatedCode,JSUnresolvedReference
+
 const BACKUP_FORMAT = '4399-plugin-backup'
 const BACKUP_VERSION = 1
 
 import FolderManager from '#features/folderManager.mjs'
+import {parseFullBackupDocument} from '#features/storageSchema.mjs'
+import {decryptPassword} from '#utils/passwordCrypto.mjs'
 
 /**
  * 备份文件生成、验证与下载管理。
  */
 export default class BackupManager {
+    static #decryptAccountPasswords(data) {
+        const result = structuredClone(data)
+        for (const account of Object.values(result.info || {})) {
+            account.password = decryptPassword(account.password)
+        }
+        return result
+    }
+
     static #collectRequiredFolders(accounts, folders) {
         const folderMap = new Map(folders.map(folder => [folder.id, folder]))
         const requiredIds = new Set()
@@ -38,9 +50,13 @@ export default class BackupManager {
 
     static async getStorageSummary() {
         const storage = await FolderManager.getStorageSnapshot()
+        const accountKeys = Object.keys(storage.info)
         return {
-            accountKeys: Object.keys(storage.info || {}),
-            hasApiKey: typeof storage.aiApiKey === 'string' && storage.aiApiKey.length > 0
+            accountKeys,
+            hasApiKey: typeof storage.aiApiKey === 'string' && storage.aiApiKey.length > 0,
+            isBaseState: accountKeys.length === 0
+                && storage.userInfoFolder.length === 0
+                && storage.aiApiKey === null
         }
     }
 
@@ -65,7 +81,7 @@ export default class BackupManager {
             )
         }
 
-        return this.#buildDocument(data, {
+        return this.#buildDocument(this.#decryptAccountPasswords(data), {
             type: 'selected',
             includeApiKey: !!includeApiKey,
             accountKeys: includeInfo ? Object.keys(data.info) : []
@@ -74,44 +90,41 @@ export default class BackupManager {
 
     static async createFullBackup() {
         const data = await FolderManager.getStorageSnapshot()
-        return this.#buildDocument(data, {type: 'full-before-import'})
+        return this.#buildDocument(this.#decryptAccountPasswords(data), {type: 'full-before-import'})
     }
 
     static validateBackup(document) {
-        if (!document || typeof document !== 'object' || Array.isArray(document)) {
-            throw new TypeError('备份文件内容无效')
-        }
-        if (document.format !== BACKUP_FORMAT || document.version !== BACKUP_VERSION) {
-            throw new TypeError('不是受支持的 4399 插件备份文件')
-        }
-        if (!document.data || typeof document.data !== 'object' || Array.isArray(document.data)) {
-            throw new TypeError('备份文件缺少 data')
-        }
-        if (document.data.info !== undefined && (
-            !document.data.info ||
-            typeof document.data.info !== 'object' ||
-            Array.isArray(document.data.info)
-        )) {
-            throw new TypeError('备份文件中的 info 格式无效')
-        }
-        if (document.data.userInfoFolder !== undefined && !Array.isArray(document.data.userInfoFolder)) {
-            throw new TypeError('备份文件中的 userInfoFolder 格式无效')
-        }
-        if (document.data.aiApiKey !== undefined && typeof document.data.aiApiKey !== 'string') {
-            throw new TypeError('备份文件中的 API Key 格式无效')
-        }
-
-        const folders = document.data.userInfoFolder || []
+        const validated = parseFullBackupDocument(document)
+        const folders = validated.data.userInfoFolder
         const folderIds = new Set()
         for (const folder of folders) {
-            if (!folder || typeof folder !== 'object' || folder.id === undefined || typeof folder.folderName !== 'string') {
-                throw new TypeError('备份文件中存在无效文件夹')
-            }
-            if (folderIds.has(folder.id)) throw new TypeError('备份文件中存在重复文件夹 ID')
+            if (folderIds.has(folder.id)) throw new TypeError('备份版本不匹配：存在重复文件夹 ID')
             folderIds.add(folder.id)
         }
+        for (const folder of folders) {
+            if (folder.parentFolderId !== null && !folderIds.has(folder.parentFolderId)) {
+                throw new TypeError('备份版本不匹配：文件夹父级不存在')
+            }
+        }
+        const folderMap = new Map(folders.map(folder => [folder.id, folder]))
+        for (const folder of folders) {
+            const visited = new Set([folder.id])
+            let parentId = folder.parentFolderId
+            while (parentId !== null) {
+                if (visited.has(parentId)) {
+                    throw new TypeError('备份版本不匹配：文件夹存在循环引用')
+                }
+                visited.add(parentId)
+                parentId = folderMap.get(parentId).parentFolderId
+            }
+        }
+        for (const account of Object.values(validated.data.info)) {
+            if (account.parentFolderId !== null && !folderIds.has(account.parentFolderId)) {
+                throw new TypeError('备份版本不匹配：账号所属文件夹不存在')
+            }
+        }
 
-        return document
+        return validated
     }
 
     static async readBackupFile(file) {
@@ -125,15 +138,15 @@ export default class BackupManager {
     }
 
     static selectImportData(document, {includeApiKey, includeInfo, accountKeys}) {
-        this.validateBackup(document)
-        const data = {}
+        const validated = this.validateBackup(document)
+        const data = {info: {}, userInfoFolder: [], aiApiKey: null}
 
-        if (includeApiKey && Object.hasOwn(document.data, 'aiApiKey')) {
-            data.aiApiKey = document.data.aiApiKey
+        if (includeApiKey) {
+            data.aiApiKey = validated.data.aiApiKey
         }
 
         if (includeInfo) {
-            const sourceInfo = document.data.info || {}
+            const sourceInfo = validated.data.info
             data.info = Object.fromEntries(
                 accountKeys
                     .filter(key => Object.hasOwn(sourceInfo, key))
@@ -141,7 +154,7 @@ export default class BackupManager {
             )
             data.userInfoFolder = this.#collectRequiredFolders(
                 data.info,
-                document.data.userInfoFolder || []
+                validated.data.userInfoFolder
             )
         }
 
@@ -181,7 +194,6 @@ export default class BackupManager {
     }
 
     static async downloadBackup(document, filenamePrefix = '4399Plugin-backup') {
-        this.validateBackup(document)
         const blob = new Blob([JSON.stringify(document, null, 2)], {type: 'application/json'})
         const url = URL.createObjectURL(blob)
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').replace('Z', '')

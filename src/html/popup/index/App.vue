@@ -64,6 +64,10 @@
           @refresh-user="refreshUser"
           @delete-user="deleteUser"
           @move-user="moveUserToFolder"
+          @save-remark="saveRemark"
+          @record-password="recordPassword"
+          @copy-password="copyPassword"
+          @delete-password="deletePassword"
           @rename-folder="openRenameFolder"
           @move-folder="moveFolderTo"
           @open-delete="folderId => openDeletePopoverId = folderId"
@@ -89,6 +93,10 @@
             @refresh="refreshUser"
             @delete="deleteUser"
             @move="moveUserToFolder"
+            @save-remark="saveRemark"
+            @record-password="recordPassword"
+            @copy-password="copyPassword"
+            @delete-password="deletePassword"
             :folders="flatFolders"
         />
       </div>
@@ -142,6 +150,9 @@
           <el-input v-model="loginForm.password" type="password" placeholder="密码" show-password
                     @keyup.enter="handleLogin"/>
         </el-form-item>
+        <el-form-item label="保存密码">
+          <el-checkbox v-model="saveLoginPassword">保存到插件本地</el-checkbox>
+        </el-form-item>
         <el-form-item label="API Key">
           <div style="display: flex; gap: 8px; width: 100%">
             <el-input v-model="loginApiKey" type="password" placeholder="Gemini API Key（可选）" show-password
@@ -180,6 +191,7 @@ import {getCurrentUserAuth} from '#features/getCurrentUserAuth.mjs'
 import getUserInfo, {getModifyPageInfo} from '#features/getUserInfo.mjs'
 import {login, loginWithCaptcha} from '#features/login.mjs'
 import windowManager from '#utils/windowManager.mjs'
+import {encryptPassword} from '#utils/passwordCrypto.mjs'
 
 // ====== 状态 ======
 const loading = ref(true)
@@ -193,6 +205,7 @@ const refreshing = ref(false)
 const showLoginDialog = ref(false)
 const loginLoading = ref(false)
 const loginForm = ref({username: '', password: ''})
+const saveLoginPassword = ref(false)
 const loginApiKey = ref('')
 const manualCaptcha = ref(false)
 const showCaptchaInput = ref(false)
@@ -404,13 +417,15 @@ async function saveLoginResult(result) {
     puser,
     cookies: savedCookies,
     email: modifyInfo?.email || '',
-    qq: modifyInfo?.qq || ''
+    qq: modifyInfo?.qq || '',
+    ...(saveLoginPassword.value ? {password: encryptPassword(loginForm.value.password)} : {})
   })
 
   loginLoading.value = false
   ElMessage.success('登录成功！账号已保存')
   showLoginDialog.value = false
   loginForm.value = {username: '', password: ''}
+  saveLoginPassword.value = false
   loginCaptcha.value = ''
   showCaptchaInput.value = false
   captchaImageUrl.value = ''
@@ -608,6 +623,76 @@ async function moveUserToFolder(puser, folderId) {
     await refreshData()
   } else {
     ElMessage.error(result.message)
+  }
+}
+
+async function saveRemark(puser, remark) {
+  if (await FolderManager.setAccountRemark(puser, remark)) {
+    ElMessage.success('备注已保存')
+    await refreshData()
+  } else {
+    ElMessage.error('账号不存在，备注保存失败')
+  }
+}
+
+async function copyPassword(puser) {
+  try {
+    const password = await FolderManager.getAccountPassword(puser)
+    if (!password) {
+      ElMessage.warning('该账号没有保存密码')
+      return
+    }
+    await navigator.clipboard.writeText(password)
+    ElMessage.success('密码已复制')
+  } catch (error) {
+    ElMessage.error(error.message || '复制密码失败')
+  }
+}
+
+async function recordPassword(puser, password, done = () => {}) {
+  const account = accounts.value[puser]
+  if (!account || account.password) {
+    ElMessage.error(account ? '该账号已经保存密码' : '账号不存在')
+    done(false)
+    return
+  }
+
+  try {
+    const result = await login(account.username, password, {apiKey: loginApiKey.value.trim()})
+    if (!result.success) {
+      ElMessage.error(result.needCaptcha ? '登录验证需要验证码，密码未保存' : result.message || '登录验证失败')
+      done(false)
+      return
+    }
+
+    const loginPuser = result.cookies?.find(cookie => cookie.name === 'Puser')?.value
+    if (!loginPuser || loginPuser !== puser) {
+      ElMessage.error('登录成功的账号与当前账号不一致，密码未保存')
+      done(false)
+      return
+    }
+
+    if (!await FolderManager.setAccountPassword(puser, password)) {
+      ElMessage.error('账号不存在，密码保存失败')
+      done(false)
+      return
+    }
+
+    ElMessage.success('密码验证成功并已保存')
+    await refreshData()
+    done(true)
+  } catch (error) {
+    ElMessage.error(error.message || '密码验证失败')
+    done(false)
+  }
+}
+
+async function deletePassword(puser) {
+  if (await FolderManager.deleteAccountPassword(puser)) {
+    ElMessage.success('密码已删除')
+    await refreshData()
+  } else {
+    ElMessage.error('账号不存在，密码删除失败')
   }
 }
 

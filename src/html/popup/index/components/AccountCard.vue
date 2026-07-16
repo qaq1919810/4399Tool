@@ -6,11 +6,12 @@
 
     <div class="info">
       <h4>
-        {{ user.nickname }}
+        <span class="display-name">{{ user.remark || user.nickname }}</span>
         <el-tag :type="user.authStatus === '已身份认证' ? 'success' : 'danger'" size="small">
           {{ user.authStatus }}
         </el-tag>
       </h4>
+      <p v-if="user.remark">用户名: {{ user.nickname }}</p>
       <p>账号: {{ user.username }}</p>
       <p>信息: {{ user.gender }} | 地区: {{ user.region }} | QQ: {{ user.qq }}</p>
     </div>
@@ -27,6 +28,10 @@
         <template #dropdown>
           <el-dropdown-menu>
             <el-dropdown-item command="edit">✏️ 修改</el-dropdown-item>
+            <el-dropdown-item command="remark">📝 修改备注</el-dropdown-item>
+            <el-dropdown-item v-if="!user.password" command="record-password">🔐 记录密码</el-dropdown-item>
+            <el-dropdown-item v-if="user.password" command="copy-password">📋 复制密码</el-dropdown-item>
+            <el-dropdown-item v-if="user.password" command="delete-password">🗑️ 删除密码</el-dropdown-item>
             <el-dropdown-item command="refresh">🔄 刷新</el-dropdown-item>
             <el-dropdown-item command="move" divided>📁 移动到</el-dropdown-item>
             <el-dropdown-item command="delete" divided>
@@ -193,6 +198,63 @@
   </div>
 
   <el-dialog
+      v-model="showRemarkDialog"
+      title="修改备注"
+      width="80%"
+      append-to-body
+      :close-on-click-modal="false"
+  >
+    <el-input
+        v-model="remarkInput"
+        placeholder="请输入备注，留空将清除备注"
+        clearable
+        @keyup.enter="saveRemark"
+    />
+    <template #footer>
+      <el-button @click="showRemarkDialog = false">取消</el-button>
+      <el-button type="primary" @click="saveRemark">保存</el-button>
+    </template>
+  </el-dialog>
+
+  <el-dialog
+      v-model="showDeletePasswordDialog"
+      title="删除保存的密码"
+      width="80%"
+      append-to-body
+      :close-on-click-modal="false"
+  >
+    <span>确定删除账号 {{ user.username }} 保存的密码吗？</span>
+    <template #footer>
+      <el-button @click="showDeletePasswordDialog = false">取消</el-button>
+      <el-button type="danger" @click="confirmDeletePassword">删除</el-button>
+    </template>
+  </el-dialog>
+
+  <el-dialog
+      v-model="showRecordPasswordDialog"
+      title="记录密码"
+      width="80%"
+      append-to-body
+      :close-on-click-modal="false"
+      :close-on-press-escape="!recordingPassword"
+      :show-close="!recordingPassword"
+  >
+    <p class="password-dialog-hint">将使用账号 {{ user.username }} 登录验证，验证成功后才会保存。</p>
+    <el-input
+        v-model="passwordInput"
+        type="password"
+        placeholder="请输入密码"
+        show-password
+        :disabled="recordingPassword"
+        @keyup.enter="submitPassword"
+    />
+    <template #footer>
+      <el-button :disabled="recordingPassword" @click="closeRecordPasswordDialog">取消</el-button>
+      <el-button type="primary" :loading="recordingPassword" @click="submitPassword">验证并保存</el-button>
+    </template>
+  </el-dialog>
+
+  <el-dialog
       v-model="showQueryResults"
       :title="`${user.username} 的游戏区服查询结果`"
       width="80%"
@@ -259,7 +321,16 @@ const props = defineProps({
   folders: Array
 })
 
-const emit = defineEmits(['toggle', 'refresh', 'delete', 'move'])
+const emit = defineEmits([
+  'toggle',
+  'refresh',
+  'delete',
+  'move',
+  'save-remark',
+  'record-password',
+  'copy-password',
+  'delete-password'
+])
 
 const switching = ref(false)
 const showEditForm = ref(false)
@@ -277,6 +348,12 @@ const queryingGames = ref(false)
 const queryResult = ref(null)
 const showQueryResults = ref(false)
 const enteringGameLink = ref('')
+const showRemarkDialog = ref(false)
+const remarkInput = ref('')
+const showDeletePasswordDialog = ref(false)
+const showRecordPasswordDialog = ref(false)
+const passwordInput = ref('')
+const recordingPassword = ref(false)
 
 const avatarUrl = ref('https://via.placeholder.com/48')
 const avatarObjectUrl = ref('')
@@ -486,6 +563,16 @@ async function enterGameAsAccount(gameLink) {
 function handleCommand(cmd) {
   if (cmd === 'edit') {
     showEditForm.value = !showEditForm.value
+  } else if (cmd === 'remark') {
+    remarkInput.value = props.user.remark || ''
+    showRemarkDialog.value = true
+  } else if (cmd === 'record-password') {
+    passwordInput.value = ''
+    showRecordPasswordDialog.value = true
+  } else if (cmd === 'copy-password') {
+    emit('copy-password', props.user.puser)
+  } else if (cmd === 'delete-password') {
+    showDeletePasswordDialog.value = true
   } else if (cmd === 'refresh') {
     emit('refresh', props.user.puser)
   } else if (cmd === 'delete') {
@@ -493,6 +580,39 @@ function handleCommand(cmd) {
   } else if (cmd === 'move') {
     showMovePopover.value = true
   }
+}
+
+function saveRemark() {
+  emit('save-remark', props.user.puser, remarkInput.value.trim() || null)
+  showRemarkDialog.value = false
+}
+
+function confirmDeletePassword() {
+  emit('delete-password', props.user.puser)
+  showDeletePasswordDialog.value = false
+}
+
+function closeRecordPasswordDialog() {
+  if (recordingPassword.value) return
+  passwordInput.value = ''
+  showRecordPasswordDialog.value = false
+}
+
+async function submitPassword() {
+  if (!passwordInput.value) {
+    ElMessage.warning('请输入密码')
+    return
+  }
+  recordingPassword.value = true
+  let success = false
+  try {
+    success = await new Promise(resolve => {
+      emit('record-password', props.user.puser, passwordInput.value, resolve)
+    })
+  } finally {
+    recordingPassword.value = false
+  }
+  if (success) closeRecordPasswordDialog()
 }
 
 function handleMove(folderId) {
@@ -588,6 +708,24 @@ async function handleSaveEdit() {
   align-items: center;
   gap: 6px;
   margin-bottom: 4px;
+}
+
+.display-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.password-dialog-hint {
+  margin: 0 0 12px;
+  color: #606266;
+  font-size: 13px;
+}
+
+.info h4 .el-tag {
+  flex-shrink: 0;
 }
 
 .info p {

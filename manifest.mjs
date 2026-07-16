@@ -24,6 +24,7 @@ export default {
         "declarativeNetRequest",
         "declarativeNetRequestWithHostAccess",
         "notifications",
+        "clipboardWrite",
         "scripting",
         "webRequest"
     ],
