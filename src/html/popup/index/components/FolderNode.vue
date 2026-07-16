@@ -22,10 +22,10 @@
               <el-dropdown-item :command="null">📄 顶层</el-dropdown-item>
               <el-dropdown-item
                   v-for="target in moveTargets"
-                  :key="target.id"
-                  :command="target.id"
+               :key="target.id"
+               :command="target.id"
               >
-                {{ '📂 ' + target.indent + target.folderName }}
+                <span class="folder-path-option" :title="target.path">📂 {{ target.path }}</span>
               </el-dropdown-item>
             </el-dropdown-menu>
           </template>
@@ -241,6 +241,7 @@ const moveTargets = computed(() => props.flatFolders.filter(target =>
 }
 
 .folder-actions { display: flex; gap: 2px; }
+.folder-path-option { display: block; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .folder-content { padding: 8px; border-top: 1px solid #eee; }
 .folder-users { display: flex; flex-direction: column; gap: 8px; }
 .child-folders { margin-top: 8px; }

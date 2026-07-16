@@ -53,7 +53,7 @@
                 :key="folder.id"
                 :command="folder.id"
             >
-              {{ '📂 ' + folder.indent + folder.folderName }}
+              <span class="folder-path-option" :title="folder.path">📂 {{ folder.path }}</span>
             </el-dropdown-item>
           </el-dropdown-menu>
         </template>
@@ -133,7 +133,7 @@
                 v-for="f in flatFolders"
                 :key="f.id"
                 :value="f.id"
-                :label="'📂 ' + f.indent + f.folderName"
+                :label="'📂 ' + f.path"
             />
           </el-select>
         </el-form-item>
@@ -252,11 +252,12 @@ const allUsers = computed(() => Object.values(accounts.value))
 const flatFolders = computed(() => {
   const result = []
 
-  function flatten(nodes, indent = '') {
+  function flatten(nodes, parentPath = '', depth = 0) {
     for (const node of nodes) {
-      result.push({...node, indent})
+      const path = parentPath ? `${parentPath} / ${node.folderName}` : node.folderName
+      result.push({...node, path, depth})
       if (node.children?.length) {
-        flatten(node.children, indent + '  ')
+        flatten(node.children, path, depth + 1)
       }
     }
   }
@@ -830,6 +831,14 @@ body {
 
 .sort-select {
   flex: 1;
+}
+
+.folder-path-option {
+  display: block;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .login-form .el-form-item__label,

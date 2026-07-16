@@ -38,6 +38,33 @@
       :rows="10"
       placeholder="转换结果（可手动修改）"
     />
+
+    <el-dialog
+      v-model="showImportResult"
+      title="批量账号保存结果"
+      width="80%"
+      append-to-body
+      :close-on-click-modal="false"
+    >
+      <div class="result-summary">
+        <div class="result-item result-total">
+          <strong>{{ importResult.total }}</strong>
+          <span>处理账号</span>
+        </div>
+        <div class="result-item result-success">
+          <strong>{{ importResult.success }}</strong>
+          <span>保存成功</span>
+        </div>
+        <div class="result-item result-failure">
+          <strong>{{ importResult.fail }}</strong>
+          <span>保存失败</span>
+        </div>
+      </div>
+      <p class="result-hint">登录或保存失败的账号仍保留在转换结果中，可以修改后再次尝试。</p>
+      <template #footer>
+        <el-button type="primary" @click="showImportResult = false">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -54,6 +81,8 @@ const outputData = ref('')
 const importing = ref(false)
 const apiKey = ref('')
 const savePasswords = ref(false)
+const showImportResult = ref(false)
+const importResult = ref({total: 0, success: 0, fail: 0})
 
 onMounted(async () => {
   const savedApiKey = await FolderManager.getApiKey()
@@ -194,7 +223,8 @@ async function acceptAndLogin() {
   await FolderManager.saveAccounts(importedAccounts)
   importing.value = false
 
-  ElMessage.success(`完成：成功 ${success}，失败 ${fail}`)
+  importResult.value = {total: accounts.length, success, fail}
+  showImportResult.value = true
 }
 </script>
 
@@ -221,5 +251,41 @@ async function acceptAndLogin() {
 
 .save-passwords {
   margin-bottom: 12px;
+}
+
+.result-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.result-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 8px;
+  border-radius: 8px;
+  background: #f5f7fa;
+}
+
+.result-item strong {
+  font-size: 26px;
+}
+
+.result-item span {
+  color: #606266;
+  font-size: 13px;
+}
+
+.result-total strong { color: #409eff; }
+.result-success strong { color: #67c23a; }
+.result-failure strong { color: #f56c6c; }
+
+.result-hint {
+  margin: 16px 0 0;
+  color: #909399;
+  font-size: 13px;
+  line-height: 1.6;
 }
 </style>

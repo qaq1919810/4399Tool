@@ -5,8 +5,8 @@
     "src": "../../../../../../@crx/manifest",
     "isEntry": true
   },
-  "__plugin-vue_export-helper-B0tuXPLz.js": {
-    "file": "assets/_plugin-vue_export-helper-B0tuXPLz.js",
+  "__plugin-vue_export-helper-BHtbk-hU.js": {
+    "file": "assets/_plugin-vue_export-helper-BHtbk-hU.js",
     "name": "_plugin-vue_export-helper",
     "css": [
       "assets/_plugin-vue_export-helper-CNpL_Sag.css"
@@ -20,139 +20,122 @@
     "file": "assets/css-BOtYs9Ub.css",
     "src": "_css-BOtYs9Ub.css"
   },
-  "_css-BPhwk5dF.css": {
-    "file": "assets/css-BPhwk5dF.css",
-    "src": "_css-BPhwk5dF.css"
+  "_css-By3Ml4al.css": {
+    "file": "assets/css-By3Ml4al.css",
+    "src": "_css-By3Ml4al.css"
   },
-  "_css-CT62riqD.js": {
-    "file": "assets/css-CT62riqD.js",
+  "_css-C-tShto8.css": {
+    "file": "assets/css-C-tShto8.css",
+    "src": "_css-C-tShto8.css"
+  },
+  "_css-DWQJAaMV.js": {
+    "file": "assets/css-DWQJAaMV.js",
     "name": "css",
     "imports": [
-      "__plugin-vue_export-helper-B0tuXPLz.js",
-      "_focus-trap-fg77Bfob.js",
-      "_omit-D9DSkk8a.js",
-      "_numbers-DzfBd5MB.js",
-      "_input-CM38CBkZ.js",
-      "_shadowFetch-kABWPzq7.js"
+      "__plugin-vue_export-helper-BHtbk-hU.js",
+      "_numbers-C6_kBc83.js",
+      "_css-DeZRj3Ui.js"
+    ],
+    "css": [
+      "assets/css-C-tShto8.css"
+    ]
+  },
+  "_css-DeZRj3Ui.js": {
+    "file": "assets/css-DeZRj3Ui.js",
+    "name": "css",
+    "imports": [
+      "__plugin-vue_export-helper-BHtbk-hU.js",
+      "_omit-YFnyT9zN.js",
+      "_folderManager-BLdRMaFh.js"
+    ],
+    "css": [
+      "assets/css-By3Ml4al.css"
+    ]
+  },
+  "_css-L6braE-u.js": {
+    "file": "assets/css-L6braE-u.js",
+    "name": "css",
+    "imports": [
+      "__plugin-vue_export-helper-BHtbk-hU.js",
+      "_omit-YFnyT9zN.js",
+      "_numbers-C6_kBc83.js",
+      "_input-CdPVeJzP.js",
+      "_shadowFetch-4lOjhzK_.js"
     ],
     "css": [
       "assets/css-BOtYs9Ub.css"
     ]
   },
-  "_css-CUhUSwJm.js": {
-    "file": "assets/css-CUhUSwJm.js",
-    "name": "css",
-    "imports": [
-      "__plugin-vue_export-helper-B0tuXPLz.js",
-      "_omit-D9DSkk8a.js"
-    ],
-    "css": [
-      "assets/css-CzNtyWdF.css"
-    ]
-  },
-  "_css-CzNtyWdF.css": {
-    "file": "assets/css-CzNtyWdF.css",
-    "src": "_css-CzNtyWdF.css"
-  },
-  "_css-DfbN_Hb8.js": {
-    "file": "assets/css-DfbN_Hb8.js",
-    "name": "css",
-    "imports": [
-      "__plugin-vue_export-helper-B0tuXPLz.js",
-      "_focus-trap-fg77Bfob.js",
-      "_numbers-DzfBd5MB.js",
-      "_overlay-Dj7tOmxf.js",
-      "_css-CUhUSwJm.js"
-    ],
-    "css": [
-      "assets/css-BPhwk5dF.css"
-    ]
-  },
-  "_focus-trap-fg77Bfob.js": {
-    "file": "assets/focus-trap-fg77Bfob.js",
-    "name": "focus-trap",
-    "imports": [
-      "__plugin-vue_export-helper-B0tuXPLz.js"
-    ]
-  },
-  "_folderManager-PJHtZOwC.js": {
-    "file": "assets/folderManager-PJHtZOwC.js",
+  "_folderManager-BLdRMaFh.js": {
+    "file": "assets/folderManager-BLdRMaFh.js",
     "name": "folderManager",
     "imports": [
+      "__plugin-vue_export-helper-BHtbk-hU.js",
       "_storageSchema-CF2gqmi8.js"
     ]
   },
-  "_input-CM38CBkZ.js": {
-    "file": "assets/input-CM38CBkZ.js",
+  "_input-CdPVeJzP.js": {
+    "file": "assets/input-CdPVeJzP.js",
     "name": "input",
     "imports": [
-      "__plugin-vue_export-helper-B0tuXPLz.js"
+      "__plugin-vue_export-helper-BHtbk-hU.js"
     ]
   },
-  "_login-DDxtQTdK.js": {
-    "file": "assets/login-DDxtQTdK.js",
+  "_login-D4iMIxL0.js": {
+    "file": "assets/login-D4iMIxL0.js",
     "name": "login",
     "imports": [
-      "__plugin-vue_export-helper-B0tuXPLz.js",
-      "_shadowFetch-kABWPzq7.js"
+      "__plugin-vue_export-helper-BHtbk-hU.js",
+      "_shadowFetch-4lOjhzK_.js"
     ]
   },
-  "_numbers-DzfBd5MB.js": {
-    "file": "assets/numbers-DzfBd5MB.js",
+  "_numbers-C6_kBc83.js": {
+    "file": "assets/numbers-C6_kBc83.js",
     "name": "numbers",
     "imports": [
-      "__plugin-vue_export-helper-B0tuXPLz.js"
+      "__plugin-vue_export-helper-BHtbk-hU.js"
     ]
   },
-  "_omit-D9DSkk8a.js": {
-    "file": "assets/omit-D9DSkk8a.js",
+  "_omit-YFnyT9zN.js": {
+    "file": "assets/omit-YFnyT9zN.js",
     "name": "omit",
     "imports": [
-      "__plugin-vue_export-helper-B0tuXPLz.js"
+      "__plugin-vue_export-helper-BHtbk-hU.js"
     ]
   },
-  "_overlay-Dj7tOmxf.js": {
-    "file": "assets/overlay-Dj7tOmxf.js",
-    "name": "overlay",
+  "_shadowFetch-4lOjhzK_.js": {
+    "file": "assets/shadowFetch-4lOjhzK_.js",
+    "name": "shadowFetch",
     "imports": [
-      "__plugin-vue_export-helper-B0tuXPLz.js",
-      "_focus-trap-fg77Bfob.js"
+      "__plugin-vue_export-helper-BHtbk-hU.js"
+    ],
+    "css": [
+      "assets/shadowFetch-BtQxgKdl.css"
     ]
   },
   "_shadowFetch-BtQxgKdl.css": {
     "file": "assets/shadowFetch-BtQxgKdl.css",
     "src": "_shadowFetch-BtQxgKdl.css"
   },
-  "_shadowFetch-kABWPzq7.js": {
-    "file": "assets/shadowFetch-kABWPzq7.js",
-    "name": "shadowFetch",
-    "imports": [
-      "__plugin-vue_export-helper-B0tuXPLz.js"
-    ],
-    "css": [
-      "assets/shadowFetch-BtQxgKdl.css"
-    ]
-  },
   "_storageSchema-CF2gqmi8.js": {
     "file": "assets/storageSchema-CF2gqmi8.js",
     "name": "storageSchema"
   },
-  "_windowManager-0wM4gxEF.js": {
-    "file": "assets/windowManager-0wM4gxEF.js",
+  "_windowManager-8YzyOmcK.css": {
+    "file": "assets/windowManager-8YzyOmcK.css",
+    "src": "_windowManager-8YzyOmcK.css"
+  },
+  "_windowManager-Z8eNDecs.js": {
+    "file": "assets/windowManager-Z8eNDecs.js",
     "name": "windowManager",
     "imports": [
-      "__plugin-vue_export-helper-B0tuXPLz.js",
-      "_focus-trap-fg77Bfob.js",
-      "_input-CM38CBkZ.js",
-      "_overlay-Dj7tOmxf.js"
+      "__plugin-vue_export-helper-BHtbk-hU.js",
+      "_input-CdPVeJzP.js",
+      "_folderManager-BLdRMaFh.js"
     ],
     "css": [
       "assets/windowManager-8YzyOmcK.css"
     ]
-  },
-  "_windowManager-8YzyOmcK.css": {
-    "file": "assets/windowManager-8YzyOmcK.css",
-    "src": "_windowManager-8YzyOmcK.css"
   },
   "src/background.mjs": {
     "file": "assets/background.mjs-DtfLdPe7.js",
@@ -164,90 +147,88 @@
     ]
   },
   "src/html/popup/backup/index.html": {
-    "file": "assets/src\\html\\popup\\backup\\index-D9Oknjj3.js",
+    "file": "assets/src\\html\\popup\\backup\\index-plGnqyen.js",
     "name": "src\\html\\popup\\backup\\index",
     "src": "src/html/popup/backup/index.html",
     "isEntry": true,
     "imports": [
-      "__plugin-vue_export-helper-B0tuXPLz.js",
+      "__plugin-vue_export-helper-BHtbk-hU.js",
       "_storageSchema-CF2gqmi8.js",
-      "_focus-trap-fg77Bfob.js",
-      "_omit-D9DSkk8a.js",
-      "_numbers-DzfBd5MB.js",
-      "_css-DfbN_Hb8.js",
-      "_css-CUhUSwJm.js",
-      "_folderManager-PJHtZOwC.js"
+      "_omit-YFnyT9zN.js",
+      "_numbers-C6_kBc83.js",
+      "_folderManager-BLdRMaFh.js",
+      "_css-DWQJAaMV.js",
+      "_css-DeZRj3Ui.js"
     ],
     "css": [
       "assets/index-DYySVzRQ.css"
     ]
   },
   "src/html/popup/batchEdit/batch-edit.html": {
-    "file": "assets/src\\html\\popup\\batchEdit\\batch-edit-CB6rxHv2.js",
+    "file": "assets/src\\html\\popup\\batchEdit\\batch-edit-9qNMHqiN.js",
     "name": "src\\html\\popup\\batchEdit\\batch-edit",
     "src": "src/html/popup/batchEdit/batch-edit.html",
     "isEntry": true,
     "imports": [
-      "__plugin-vue_export-helper-B0tuXPLz.js",
+      "__plugin-vue_export-helper-BHtbk-hU.js",
       "_storageSchema-CF2gqmi8.js",
-      "_css-CT62riqD.js",
-      "_shadowFetch-kABWPzq7.js"
+      "_css-L6braE-u.js",
+      "_shadowFetch-4lOjhzK_.js"
     ],
     "css": [
       "assets/batch-edit-CYZMEuPR.css"
     ]
   },
   "src/html/popup/batchImport/index.html": {
-    "file": "assets/src\\html\\popup\\batchImport\\index-DqpcRyJO.js",
+    "file": "assets/src\\html\\popup\\batchImport\\index-C2JHChcJ.js",
     "name": "src\\html\\popup\\batchImport\\index",
     "src": "src/html/popup/batchImport/index.html",
     "isEntry": true,
     "imports": [
-      "__plugin-vue_export-helper-B0tuXPLz.js",
+      "__plugin-vue_export-helper-BHtbk-hU.js",
       "_storageSchema-CF2gqmi8.js",
-      "_input-CM38CBkZ.js",
-      "_shadowFetch-kABWPzq7.js",
-      "_css-CUhUSwJm.js",
-      "_folderManager-PJHtZOwC.js",
-      "_login-DDxtQTdK.js"
+      "_input-CdPVeJzP.js",
+      "_folderManager-BLdRMaFh.js",
+      "_shadowFetch-4lOjhzK_.js",
+      "_css-DeZRj3Ui.js",
+      "_login-D4iMIxL0.js"
     ],
     "css": [
-      "assets/index-D-e5oFoX.css"
+      "assets/index-OZy0pzVY.css"
     ]
   },
   "src/html/popup/index/index.html": {
-    "file": "assets/src\\html\\popup\\index\\index-C0MpS-ll.js",
+    "file": "assets/src\\html\\popup\\index\\index-92FQN-Gs.js",
     "name": "src\\html\\popup\\index\\index",
     "src": "src/html/popup/index/index.html",
     "isEntry": true,
     "imports": [
-      "__plugin-vue_export-helper-B0tuXPLz.js",
+      "__plugin-vue_export-helper-BHtbk-hU.js",
       "_storageSchema-CF2gqmi8.js",
-      "_css-CT62riqD.js",
-      "_focus-trap-fg77Bfob.js",
-      "_numbers-DzfBd5MB.js",
-      "_input-CM38CBkZ.js",
-      "_css-DfbN_Hb8.js",
-      "_shadowFetch-kABWPzq7.js",
-      "_windowManager-0wM4gxEF.js",
-      "_css-CUhUSwJm.js",
-      "_folderManager-PJHtZOwC.js",
-      "_login-DDxtQTdK.js"
+      "_css-L6braE-u.js",
+      "_numbers-C6_kBc83.js",
+      "_input-CdPVeJzP.js",
+      "_folderManager-BLdRMaFh.js",
+      "_css-DWQJAaMV.js",
+      "_shadowFetch-4lOjhzK_.js",
+      "_windowManager-Z8eNDecs.js",
+      "_css-DeZRj3Ui.js",
+      "_login-D4iMIxL0.js"
     ],
     "css": [
-      "assets/index-BBE-OeOm.css"
+      "assets/index-B67GJymv.css"
     ]
   },
   "src/html/popup/settings/index.html": {
-    "file": "assets/src\\html\\popup\\settings\\index-DiWhc_et.js",
+    "file": "assets/src\\html\\popup\\settings\\index-Cx31ISQC.js",
     "name": "src\\html\\popup\\settings\\index",
     "src": "src/html/popup/settings/index.html",
     "isEntry": true,
     "imports": [
-      "__plugin-vue_export-helper-B0tuXPLz.js",
+      "__plugin-vue_export-helper-BHtbk-hU.js",
       "_storageSchema-CF2gqmi8.js",
-      "_windowManager-0wM4gxEF.js",
-      "_folderManager-PJHtZOwC.js"
+      "_folderManager-BLdRMaFh.js",
+      "_windowManager-Z8eNDecs.js"
     ],
     "css": [
       "assets/index-BN4yAHSo.css"

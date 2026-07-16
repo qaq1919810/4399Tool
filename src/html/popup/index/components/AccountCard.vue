@@ -6,14 +6,14 @@
 
     <div class="info">
       <h4>
-        <span class="display-name">{{ user.remark || user.nickname }}</span>
+        <span class="display-name">{{ user.nickname }}</span>
         <el-tag :type="user.authStatus === '已身份认证' ? 'success' : 'danger'" size="small">
           {{ user.authStatus }}
         </el-tag>
       </h4>
-      <p v-if="user.remark">用户名: {{ user.nickname }}</p>
       <p>账号: {{ user.username }}</p>
       <p>信息: {{ user.gender }} | 地区: {{ user.region }} | QQ: {{ user.qq }}</p>
+      <p v-if="user.remark" class="account-description">备注: {{ user.remark }}</p>
     </div>
 
     <div class="btn-group">
@@ -28,7 +28,7 @@
         <template #dropdown>
           <el-dropdown-menu>
             <el-dropdown-item command="edit">✏️ 修改</el-dropdown-item>
-            <el-dropdown-item command="remark">📝 修改备注</el-dropdown-item>
+            <el-dropdown-item command="remark">📝 修改账号描述</el-dropdown-item>
             <el-dropdown-item v-if="!user.password" command="record-password">🔐 记录密码</el-dropdown-item>
             <el-dropdown-item v-if="user.password" command="copy-password">📋 复制密码</el-dropdown-item>
             <el-dropdown-item v-if="user.password" command="delete-password">🗑️ 删除密码</el-dropdown-item>
@@ -43,7 +43,7 @@
     </div>
 
     <!-- 移动到文件夹 -->
-    <el-popover v-model:visible="showMovePopover" placement="right" :width="200" trigger="click">
+    <el-popover v-model:visible="showMovePopover" placement="right" :width="320" trigger="click">
       <template #reference>
         <span ref="moveTrigger" style="display: none"></span>
       </template>
@@ -57,9 +57,10 @@
               v-for="folder in folders"
               :key="folder.id"
               class="move-item"
+              :title="folder.path"
               @click="handleMove(folder.id)"
           >
-            📂 {{ folder.indent }}{{ folder.folderName }}
+            📂 {{ folder.path }}
           </div>
         </div>
       </div>
@@ -199,16 +200,16 @@
 
   <el-dialog
       v-model="showRemarkDialog"
-      title="修改备注"
+      title="修改账号描述"
       width="80%"
       append-to-body
       :close-on-click-modal="false"
   >
     <el-input
         v-model="remarkInput"
-        placeholder="请输入备注，留空将清除备注"
-        clearable
-        @keyup.enter="saveRemark"
+        type="textarea"
+        :autosize="{minRows: 3}"
+        placeholder="请输入账号描述，留空将清除描述"
     />
     <template #footer>
       <el-button @click="showRemarkDialog = false">取消</el-button>
@@ -750,6 +751,16 @@ async function handleSaveEdit() {
   background-color: #f0f0f0;
 }
 
+.info .account-description {
+  margin-top: 6px;
+  overflow: visible;
+  color: #606266;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: pre-wrap;
+}
+
 .query-toggle {
   margin-left: 0;
 }
@@ -936,8 +947,11 @@ async function handleSaveEdit() {
 .move-item {
   padding: 6px 8px;
   border-radius: 4px;
+  overflow: hidden;
   cursor: pointer;
   font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .move-item:hover {
