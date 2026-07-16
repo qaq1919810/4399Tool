@@ -21,6 +21,19 @@
       <el-button type="success" @click="batchImport">批量导入</el-button>
     </div>
 
+    <div class="sort-bar">
+      <span class="sort-label">文件夹排序</span>
+      <el-select v-model="folderSortBy" size="small" class="sort-select" @change="refreshData">
+        <el-option value="createdAt" label="创建时间"/>
+        <el-option value="updatedAt" label="最后修改时间"/>
+        <el-option value="name" label="首字母"/>
+        <el-option value="accountCount" label="账号数量"/>
+      </el-select>
+      <el-button size="small" @click="toggleFolderSortDirection">
+        {{ folderSortDirection === 'asc' ? '↑ 升序' : '↓ 降序' }}
+      </el-button>
+    </div>
+
     <!-- 多选操作栏 -->
     <div v-if="selectedUsers.length > 0" class="batch-bar">
       <el-checkbox v-model="selectAll" @change="toggleSelectAll">全选</el-checkbox>
@@ -198,6 +211,8 @@ const loading = ref(true)
 const auth = ref(null)
 const accounts = ref({})
 const folderTree = ref([])
+const folderSortBy = ref('updatedAt')
+const folderSortDirection = ref('desc')
 const selectedUsers = ref([])
 const refreshing = ref(false)
 
@@ -435,8 +450,16 @@ async function saveLoginResult(result) {
 }
 
 async function refreshData() {
-  folderTree.value = await FolderManager.getFolderTree()
+  folderTree.value = await FolderManager.getFolderTree({
+    sortBy: folderSortBy.value,
+    sortDirection: folderSortDirection.value
+  })
   accounts.value = await FolderManager.getAccounts()
+}
+
+async function toggleFolderSortDirection() {
+  folderSortDirection.value = folderSortDirection.value === 'asc' ? 'desc' : 'asc'
+  await refreshData()
 }
 
 async function saveCurrentAccount() {
@@ -773,6 +796,26 @@ body {
   display: flex;
   gap: 8px;
   margin-bottom: 12px;
+}
+
+.sort-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.sort-label {
+  color: #606266;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.sort-select {
+  flex: 1;
 }
 
 .btn-save {

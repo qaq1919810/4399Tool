@@ -21,6 +21,7 @@
     "declarativeNetRequest",
     "declarativeNetRequestWithHostAccess",
     "notifications",
+    "clipboardWrite",
     "scripting",
     "webRequest"
   ],

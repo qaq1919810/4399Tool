@@ -46,8 +46,10 @@ const backupAccountSchema = accountSchema.extend({
 export const folderSchema = z.strictObject({
     id: z.number(),
     folderName: z.string(),
-    parentFolderId: z.number().nullable()
-})
+    parentFolderId: z.number().nullable(),
+    createdAt: z.number().int().nonnegative(),
+    updatedAt: z.number().int().nonnegative()
+}).refine(folder => folder.updatedAt >= folder.createdAt)
 
 export const storageSchema = z.strictObject({
     info: z.record(z.string(), accountSchema),

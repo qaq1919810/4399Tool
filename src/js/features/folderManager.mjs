@@ -50,6 +50,21 @@ export default class FolderManager {
         return Date.now()
     }
 
+    static #touchFolderAncestors(folders, folderIds, timestamp = Date.now()) {
+        const folderMap = new Map(folders.map(folder => [folder.id, folder]))
+        const touched = new Set()
+        for (const folderId of folderIds) {
+            let currentId = folderId
+            while (currentId !== null && currentId !== undefined && !touched.has(currentId)) {
+                touched.add(currentId)
+                const folder = folderMap.get(currentId)
+                if (!folder) break
+                folder.updatedAt = Math.max(timestamp, folder.createdAt)
+                currentId = folder.parentFolderId
+            }
+        }
+    }
+
     static #collectRequiredFolderIds(info, folders) {
         const folderMap = new Map(folders.map(folder => [folder.id, folder]))
         const requiredIds = new Set()
@@ -163,9 +178,12 @@ export default class FolderManager {
     /**
      * 将扁平文件夹数组构建成树，不修改传入对象。
      * @param {Array<{id: number, parentFolderId: number|null}>} folders
+     * @param accounts
+     * @param sortBy
+     * @param sortDirection
      * @returns {Array}
      */
-    static buildFolderTree(folders) {
+    static buildFolderTree(folders, accounts = {}, {sortBy = 'updatedAt', sortDirection = 'desc'} = {}) {
         const folderMap = new Map(folders.map(folder => [folder.id, {...folder, children: []}]))
         const roots = []
 
@@ -178,6 +196,40 @@ export default class FolderManager {
             }
         }
 
+        const directAccountCounts = new Map()
+        for (const account of Object.values(accounts)) {
+            const folderId = account.parentFolderId
+            if (folderId === null || !folderMap.has(folderId)) continue
+            directAccountCounts.set(folderId, (directAccountCounts.get(folderId) || 0) + 1)
+        }
+
+        const countAccounts = folder => {
+            folder.accountCount = (directAccountCounts.get(folder.id) || 0)
+                + folder.children.reduce((total, child) => total + countAccounts(child), 0)
+            return folder.accountCount
+        }
+        roots.forEach(countAccounts)
+
+        const nameCompare = (a, b) => a.folderName.localeCompare(b.folderName, 'zh-CN', {
+            numeric: true,
+            sensitivity: 'base'
+        })
+        const compare = (a, b) => {
+            let result
+            if (sortBy === 'createdAt') result = a.createdAt - b.createdAt
+            else if (sortBy === 'updatedAt') result = a.updatedAt - b.updatedAt
+            else if (sortBy === 'accountCount') result = a.accountCount - b.accountCount
+            else result = nameCompare(a, b)
+
+            if (result !== 0 && sortDirection === 'desc') result *= -1
+            return result || nameCompare(a, b) || a.id - b.id
+        }
+        const sortNodes = nodes => {
+            nodes.sort(compare)
+            nodes.forEach(folder => sortNodes(folder.children))
+        }
+        sortNodes(roots)
+
         return roots
     }
 
@@ -185,8 +237,9 @@ export default class FolderManager {
      * 获取文件夹树。
      * @returns {Promise<Array>}
      */
-    static async getFolderTree() {
-        return this.buildFolderTree(await this.getAllFolders())
+    static async getFolderTree(sortOptions = {}) {
+        const storage = await this.getStorageSnapshot()
+        return this.buildFolderTree(storage.userInfoFolder || [], storage.info || {}, sortOptions)
     }
 
     /**
@@ -204,14 +257,22 @@ export default class FolderManager {
      * @param {boolean} preserveFolder
      */
     static async saveAccounts(accounts, preserveFolder = true) {
-        return this.#updateStorage([this.#INFO_KEY], ({info}) => {
+        return this.#updateStorage([this.#FOLDER_KEY, this.#INFO_KEY], ({folders, info}) => {
+            const affectedFolderIds = new Set()
             for (const account of accounts) {
                 if (!account?.puser) continue
                 const existing = info[account.puser] || null
                 const normalized = normalizeAccount(account, existing)
                 if (!preserveFolder) normalized.parentFolderId = account.parentFolderId ?? null
                 info[account.puser] = normalized
+                if (!existing && normalized.parentFolderId !== null) {
+                    affectedFolderIds.add(normalized.parentFolderId)
+                } else if (existing && existing.parentFolderId !== normalized.parentFolderId) {
+                    if (existing.parentFolderId !== null) affectedFolderIds.add(existing.parentFolderId)
+                    if (normalized.parentFolderId !== null) affectedFolderIds.add(normalized.parentFolderId)
+                }
             }
+            this.#touchFolderAncestors(folders, affectedFolderIds)
         })
     }
 
@@ -252,9 +313,12 @@ export default class FolderManager {
      * @returns {Promise<Object|null>} 被删除的账号
      */
     static async deleteAccount(puser) {
-        return this.#updateStorage([this.#INFO_KEY], ({info}) => {
+        return this.#updateStorage([this.#FOLDER_KEY, this.#INFO_KEY], ({folders, info}) => {
             const account = info[puser] || null
             delete info[puser]
+            if (account?.parentFolderId !== null && account?.parentFolderId !== undefined) {
+                this.#touchFolderAncestors(folders, [account.parentFolderId])
+            }
             return account
         })
     }
@@ -265,13 +329,16 @@ export default class FolderManager {
      * @returns {Promise<number>} 实际删除数量
      */
     static async deleteAccounts(pusers) {
-        return this.#updateStorage([this.#INFO_KEY], ({info}) => {
+        return this.#updateStorage([this.#FOLDER_KEY, this.#INFO_KEY], ({folders, info}) => {
             let deleted = 0
+            const affectedFolderIds = new Set()
             for (const puser of pusers) {
                 if (!info[puser]) continue
+                if (info[puser].parentFolderId !== null) affectedFolderIds.add(info[puser].parentFolderId)
                 delete info[puser]
                 deleted++
             }
+            this.#touchFolderAncestors(folders, affectedFolderIds)
             return deleted
         })
     }
@@ -327,8 +394,16 @@ export default class FolderManager {
             )
             if (exists) return {success: false, message: '同级目录下已存在同名文件夹'}
 
-            const folder = {id: this.#generateId(), folderName: normalizedName, parentFolderId}
+            const timestamp = Date.now()
+            const folder = {
+                id: this.#generateId(),
+                folderName: normalizedName,
+                parentFolderId,
+                createdAt: timestamp,
+                updatedAt: timestamp
+            }
             folders.push(folder)
+            if (parentFolderId !== null) this.#touchFolderAncestors(folders, [parentFolderId], timestamp)
             return {success: true, folder}
         })
     }
@@ -348,6 +423,7 @@ export default class FolderManager {
                 return childIds.flatMap(id => [id, ...collectChildFolderIds(id)])
             }
             const deletedFolderIds = [folderId, ...collectChildFolderIds(folderId)]
+            const parentFolderId = folder.parentFolderId
             data.folders = data.folders.filter(item => !deletedFolderIds.includes(item.id))
 
             let deletedUsers = 0
@@ -356,6 +432,7 @@ export default class FolderManager {
                 delete data.info[puser]
                 deletedUsers++
             }
+            if (parentFolderId !== null) this.#touchFolderAncestors(data.folders, [parentFolderId])
             return {success: true, deletedUsers}
         })
     }
@@ -381,6 +458,7 @@ export default class FolderManager {
             if (exists) return {success: false, message: '同级目录下已存在同名文件夹'}
 
             folder.folderName = normalizedName
+            this.#touchFolderAncestors(folders, [folder.id])
             return {success: true}
         })
     }
@@ -411,7 +489,12 @@ export default class FolderManager {
             )
             if (exists) return {success: false, message: '目标位置已存在同名文件夹'}
 
+            const oldParentFolderId = folder.parentFolderId
             folder.parentFolderId = newParentFolderId
+            this.#touchFolderAncestors(
+                folders,
+                [folder.id, oldParentFolderId, newParentFolderId].filter(id => id !== null)
+            )
             return {success: true}
         })
     }
@@ -426,7 +509,13 @@ export default class FolderManager {
                 return {success: false, message: '目标文件夹不存在'}
             }
 
+            const oldFolderId = info[puser].parentFolderId
+            if (oldFolderId === folderId) return {success: true}
             info[puser].parentFolderId = folderId
+            this.#touchFolderAncestors(
+                folders,
+                [oldFolderId, folderId].filter(id => id !== null)
+            )
             return {success: true}
         })
     }
@@ -481,16 +570,22 @@ export default class FolderManager {
             }
 
             const folderIdMap = this.#mergeImportedFolders(currentFolders, importedFolders, effectiveInfo)
+            const affectedFolderIds = new Set()
             for (const [puser, account] of Object.entries(effectiveInfo)) {
+                const oldFolderId = currentInfo[puser]?.parentFolderId ?? null
                 const importedFolderId = account.parentFolderId
+                const targetFolderId = importedFolderId === null || importedFolderId === undefined
+                    ? null
+                    : folderIdMap.get(importedFolderId) ?? null
                 currentInfo[puser] = {
                     ...account,
                     puser,
-                    parentFolderId: importedFolderId === null || importedFolderId === undefined
-                        ? null
-                        : folderIdMap.get(importedFolderId) ?? null
+                    parentFolderId: targetFolderId
                 }
+                if (oldFolderId !== null) affectedFolderIds.add(oldFolderId)
+                if (targetFolderId !== null) affectedFolderIds.add(targetFolderId)
             }
+            this.#touchFolderAncestors(currentFolders, affectedFolderIds)
 
             const changes = {
                 info: currentInfo,
