@@ -133,9 +133,9 @@
 </template>
 
 <script setup>
-import {computed, nextTick, onMounted, ref} from 'vue'
+import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import {shadowFetch} from '#utils/shadowFetch.mjs'
-import {modifyAvatar, modifyUserInfo} from '#features/modifyUserInfo.mjs'
+import {modifyProfileAndAvatar} from '#features/modifyUserInfo.mjs'
 import {getRegionData} from '#utils/regionData.mjs'
 
 const props = defineProps({
@@ -154,6 +154,8 @@ const saving = ref(false)
 const avatarUploadRef = ref(null)
 
 const avatarUrl = ref('https://via.placeholder.com/48')
+const avatarObjectUrl = ref('')
+const avatarPreviewUrl = ref('')
 
 const editForm = ref({
   nick: '',
@@ -173,9 +175,28 @@ const cityOptions = computed(() => {
   return editForm.value.province ? (cityMap.value[editForm.value.province] || []) : []
 })
 
-const avatarPreviewUrl = computed(() => {
-  if (!editForm.value.avatar) return ''
-  return URL.createObjectURL(editForm.value.avatar)
+function replaceAvatarObjectUrl(blob) {
+  if (avatarObjectUrl.value) {
+    URL.revokeObjectURL(avatarObjectUrl.value)
+  }
+  avatarObjectUrl.value = URL.createObjectURL(blob)
+  avatarUrl.value = avatarObjectUrl.value
+}
+
+watch(() => editForm.value.avatar, (avatar) => {
+  if (avatarPreviewUrl.value) {
+    URL.revokeObjectURL(avatarPreviewUrl.value)
+  }
+  avatarPreviewUrl.value = avatar ? URL.createObjectURL(avatar) : ''
+})
+
+onBeforeUnmount(() => {
+  if (avatarObjectUrl.value) {
+    URL.revokeObjectURL(avatarObjectUrl.value)
+  }
+  if (avatarPreviewUrl.value) {
+    URL.revokeObjectURL(avatarPreviewUrl.value)
+  }
 })
 
 onMounted(async () => {
@@ -191,7 +212,7 @@ onMounted(async () => {
       })
       if (resp.ok) {
         const blob = await resp.blob()
-        avatarUrl.value = URL.createObjectURL(blob)
+        replaceAvatarObjectUrl(blob)
       }
     } catch {
       avatarUrl.value = 'https://via.placeholder.com/48'
@@ -285,12 +306,7 @@ async function handleSaveEdit() {
   }
 
   saving.value = true
-  let result
-  if (editForm.value.avatar) {
-    result = await modifyAvatar(editForm.value.avatar, props.user.cookies)
-  } else {
-    result = await modifyUserInfo(params, props.user.cookies)
-  }
+  const result = await modifyProfileAndAvatar(params, editForm.value.avatar, props.user.cookies)
   saving.value = false
 
   if (result.success) {

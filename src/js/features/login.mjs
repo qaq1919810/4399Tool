@@ -75,6 +75,17 @@ function parseCookiesToMap(setCookieHeaders) {
 }
 
 /**
+ * 判断响应 Cookie 是否包含可用于后续账号资料请求的登录态。
+ * 4399 在风控或验证码流程中也会下发 Cookie，因此不能仅凭 Set-Cookie 存在判定成功。
+ * @param {Array<{name: string}>} cookies
+ * @returns {boolean}
+ */
+function hasLoginCookies(cookies) {
+    const names = new Set(cookies.map(cookie => cookie.name))
+    return names.has('Puser') && ['Uauth', 'Pauth', 'Xauth'].some(name => names.has(name))
+}
+
+/**
  * 检测响应是否需要验证码
  */
 function needCaptcha(html) {
@@ -205,10 +216,9 @@ export async function login(username, password, options = {}) {
         }
 
         // 验证码重试循环
-        let lastSessionId = ''
         let captchaText = ''
 
-        for (let attempt = 0; attempt <= MAX_CAPTCHA_RETRIES; attempt++) {
+        for (let attempt = 0; attempt < MAX_CAPTCHA_RETRIES; attempt++) {
             const postBody = new URLSearchParams(baseForm)
 
             // 如果有验证码，加上 inputCaptcha
@@ -228,15 +238,17 @@ export async function login(username, password, options = {}) {
             const setCookieHeaders = loginRes.headers.getSetCookie()
             console.log('[4399管家] 影子登录：响应 Set-Cookie:', setCookieHeaders)
 
-            // 有 Set-Cookie 说明登录成功
+            // 仅在返回完整登录态时才说明登录成功；风控流程本身也可能下发 Cookie。
             if (setCookieHeaders && setCookieHeaders.length > 0) {
                 const allCookies = parseSetCookie(setCookieHeaders)
                 console.log('[4399管家] 影子登录：解析后的 Cookie:', allCookies)
-                return {
-                    success: true,
-                    message: '登录成功',
-                    cookies: allCookies,
-                    username: username
+                if (hasLoginCookies(allCookies)) {
+                    return {
+                        success: true,
+                        message: '登录成功',
+                        cookies: allCookies,
+                        username: username
+                    }
                 }
             }
 
@@ -277,7 +289,6 @@ export async function login(username, password, options = {}) {
 
             // 更新 baseForm 中的 sessionId
             baseForm.sessionId = sessionId
-            lastSessionId = sessionId
             console.log(`[4399管家] 影子登录：需要验证码 (attempt ${attempt + 1}/${MAX_CAPTCHA_RETRIES}), sessionId=${sessionId}`)
 
             // 获取验证码图片
@@ -410,11 +421,13 @@ export async function loginWithCaptcha(username, password, sessionId, captchaTex
 
         if (setCookieHeaders && setCookieHeaders.length > 0) {
             const allCookies = parseSetCookie(setCookieHeaders)
-            return {
-                success: true,
-                message: '登录成功',
-                cookies: allCookies,
-                username: username
+            if (hasLoginCookies(allCookies)) {
+                return {
+                    success: true,
+                    message: '登录成功',
+                    cookies: allCookies,
+                    username: username
+                }
             }
         }
 

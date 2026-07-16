@@ -55,7 +55,7 @@ class WindowManager {
                 windowId,
                 tabId,
 
-                // 核心大招：单方闭包直控，不再需要传递第二个参数数组
+                // 传递手柄
                 exec: async (func) => {
                     this.#log('执行 exec (闭包直控模式)', {tabId, functionName: func.name || 'anonymous'})
 
@@ -81,8 +81,8 @@ class WindowManager {
     /**
      * 获取所有存活的 Popup 窗口实例
      */
-    async getWindows() {
-        this.#log('读取 getWindows', '正在获取所有Popup窗口...')
+    async getView() {
+        this.#log('读取 getView', '正在获取所有Popup窗口...')
         const winList = await chrome.windows.getAll({populate: true})
 
         const instances = winList
@@ -98,7 +98,7 @@ class WindowManager {
             })
             .filter(Boolean)
 
-        this.#log('读取 getWindows 完成', `成功获取到 ${instances.length} 个活跃实例`)
+        this.#log('读取 getView 完成', `成功获取到 ${instances.length} 个活跃实例`)
         return instances
     }
 

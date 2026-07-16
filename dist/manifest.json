@@ -15,6 +15,7 @@
   "action": {},
   "permissions": [
     "cookies",
+    "downloads",
     "storage",
     "unlimitedStorage",
     "declarativeNetRequest",
@@ -34,7 +35,9 @@
       "resources": [
         "src/html/popup/index/index.html",
         "src/html/popup/batchEdit/batch-edit.html",
-        "src/html/popup/batchImport/index.html"
+        "src/html/popup/batchImport/index.html",
+        "src/html/popup/settings/index.html",
+        "src/html/popup/backup/index.html"
       ],
       "use_dynamic_url": false
     }

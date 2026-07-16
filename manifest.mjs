@@ -18,6 +18,7 @@ export default {
 
     permissions: [
         "cookies",
+        "downloads",
         "storage",
         "unlimitedStorage",
         "declarativeNetRequest",
@@ -32,7 +33,13 @@ export default {
     ],
 
     web_accessible_resources: [{
-        resources: ["src/html/popup/index/index.html", "src/html/popup/batchEdit/batch-edit.html", "src/html/popup/batchImport/index.html"],
+        resources: [
+            "src/html/popup/index/index.html",
+            "src/html/popup/batchEdit/batch-edit.html",
+            "src/html/popup/batchImport/index.html",
+            "src/html/popup/settings/index.html",
+            "src/html/popup/backup/index.html"
+        ],
         matches: ["<all_urls>"]
     }]
 }

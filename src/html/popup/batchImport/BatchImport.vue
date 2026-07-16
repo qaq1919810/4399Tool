@@ -42,6 +42,7 @@ import {onMounted, ref} from 'vue'
 import {ElMessage} from 'element-plus'
 import {login} from '#features/login.mjs'
 import getUserInfo, {getModifyPageInfo} from '#features/getUserInfo.mjs'
+import FolderManager from '#features/folderManager.mjs'
 
 const rawData = ref('')
 const outputData = ref('')
@@ -49,9 +50,9 @@ const importing = ref(false)
 const apiKey = ref('')
 
 onMounted(async () => {
-  const wrapper = await chrome.storage.local.get('aiApiKey')
-  if (wrapper.aiApiKey) {
-    apiKey.value = wrapper.aiApiKey
+  const savedApiKey = await FolderManager.getApiKey()
+  if (savedApiKey) {
+    apiKey.value = savedApiKey
   }
 })
 
@@ -60,7 +61,7 @@ async function saveApiKey() {
     ElMessage.warning('请输入 API Key')
     return
   }
-  await chrome.storage.local.set({aiApiKey: apiKey.value.trim()})
+  await FolderManager.saveApiKey(apiKey.value.trim())
   ElMessage.success('API Key 已保存')
 }
 
@@ -133,8 +134,7 @@ async function acceptAndLogin() {
   let success = 0
   let fail = 0
 
-  const wrapper = await chrome.storage.local.get('info')
-  const info = wrapper.info || {}
+  const importedAccounts = []
 
   // 并发登录所有账号（验证码各自并行处理）
   const tasks = accounts.map(acc => login(acc.username, acc.password, {
@@ -161,21 +161,13 @@ async function acceptAndLogin() {
         const userInfo = await getUserInfo(puser, savedCookies)
         const modifyInfo = await getModifyPageInfo(savedCookies)
 
-        // 保留原有的 parentFolderId
-        const existingFolderId = info[puser]?.parentFolderId
-
-        info[puser] = {
+        importedAccounts.push({
           ...(userInfo || {}),
           puser,
           cookies: savedCookies,
           email: modifyInfo?.email || '',
           qq: modifyInfo?.qq || ''
-        }
-
-        // 如果原来有文件夹位置，保留
-        if (existingFolderId !== undefined) {
-          info[puser].parentFolderId = existingFolderId
-        }
+        })
 
         success++
         removeAccountFromOutput(acc.username)
@@ -187,7 +179,7 @@ async function acceptAndLogin() {
     }
   }
 
-  await chrome.storage.local.set({info})
+  await FolderManager.saveAccounts(importedAccounts)
   importing.value = false
 
   ElMessage.success(`完成：成功 ${success}，失败 ${fail}`)

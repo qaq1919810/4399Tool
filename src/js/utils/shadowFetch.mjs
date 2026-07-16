@@ -15,11 +15,89 @@ const SHADOW_CONFIG = {
 
 const DNR_RULE_PREFIX = 20000
 const DNR_MAX_RULES = 10000
-let ruleCounter = 0 // 静态原子递增，仅作为 ID 生成器
+const DNR_RULE_RESERVATIONS_KEY = 'shadowFetchRuleReservations'
+const RESPONSE_HEADER_TIMEOUT_MS = 500
 
 // 跨异步事件的数据转交中心，以 ruleId 为 Key，绝对不串数据
 const shadowResponseHeadersMap = new Map()
 const shadowRequestHeadersMap = new Map()
+const responseHeaderWaiters = new Map()
+
+/**
+ * 在所有扩展页面之间分配唯一的 DNR Session Rule ID。
+ *
+ * chrome.storage.session 让刷新后的页面也能看到当前占用；Web Locks 让多个
+ * Popup 同时发请求时的“读取占用 → 分配 ID → 写回”保持原子性。
+ * 这里不依赖 runtime 消息或后台转发。
+ * @returns {Promise<number>}
+ */
+async function reserveRuleId() {
+    // noinspection JSValidateTypes
+    return navigator.locks.request('4399-shadow-fetch-rule-ids', async () => {
+        const [{[DNR_RULE_RESERVATIONS_KEY]: reservations = {}}, sessionRules] = await Promise.all([
+            chrome.storage.session.get(DNR_RULE_RESERVATIONS_KEY),
+            chrome.declarativeNetRequest.getSessionRules()
+        ])
+        // noinspection JSUnresolvedReference
+        const occupiedIds = new Set([
+            ...Object.keys(reservations).map(Number),
+            ...sessionRules.map(rule => rule.id)
+        ])
+
+        for (let offset = 0; offset < DNR_MAX_RULES; offset++) {
+            const ruleId = DNR_RULE_PREFIX + offset
+            if (!occupiedIds.has(ruleId)) {
+                await chrome.storage.session.set({
+                    [DNR_RULE_RESERVATIONS_KEY]: {
+                        ...reservations,
+                        [ruleId]: Date.now()
+                    }
+                })
+                return ruleId
+            }
+        }
+
+        throw new Error('ShadowFetch 可用的 DNR Rule ID 已耗尽')
+    })
+}
+
+/**
+ * 释放当前请求占用的 Rule ID。正常请求会先移除 DNR Rule，再释放预留记录。
+ * @param {number} ruleId
+ */
+async function releaseRuleId(ruleId) {
+    await navigator.locks.request('4399-shadow-fetch-rule-ids', async () => {
+        const {[DNR_RULE_RESERVATIONS_KEY]: reservations = {}} = await chrome.storage.session.get(DNR_RULE_RESERVATIONS_KEY)
+        if (!(ruleId in reservations)) return
+
+        const nextReservations = {...reservations}
+        delete nextReservations[ruleId]
+        await chrome.storage.session.set({[DNR_RULE_RESERVATIONS_KEY]: nextReservations})
+    })
+}
+
+/**
+ * 等待 webRequest 监听器收到对应请求的真实响应头；仅在事件丢失时才超时回退。
+ * @param {number} ruleId
+ * @returns {Promise<Array|undefined>}
+ */
+function waitForResponseHeaders(ruleId) {
+    const capturedHeaders = shadowResponseHeadersMap.get(ruleId)
+    if (capturedHeaders) return Promise.resolve(capturedHeaders)
+
+    return new Promise(resolve => {
+        const timeoutId = setTimeout(() => {
+            responseHeaderWaiters.delete(ruleId)
+            resolve(undefined)
+        }, RESPONSE_HEADER_TIMEOUT_MS)
+
+        responseHeaderWaiters.set(ruleId, headers => {
+            clearTimeout(timeoutId)
+            responseHeaderWaiters.delete(ruleId)
+            resolve(headers)
+        })
+    })
+}
 
 /**
  * 1. 后台静默监听：捕获浏览器底层真正外发的请求头（包含隐式自动补全的 Cookie 等）
@@ -56,7 +134,9 @@ chrome.webRequest.onHeadersReceived.addListener(
             const urlObj = new URL(details.url)
             const shadowReqId = urlObj.searchParams.get('_shadow_req_id')
             if (shadowReqId && details.responseHeaders) {
-                shadowResponseHeadersMap.set(Number(shadowReqId), details.responseHeaders)
+                const ruleId = Number(shadowReqId)
+                shadowResponseHeadersMap.set(ruleId, details.responseHeaders)
+                responseHeaderWaiters.get(ruleId)?.(details.responseHeaders)
             }
         } catch (e) {
             // 忽略非标准 URL 解析错误
@@ -76,22 +156,6 @@ class ShadowFetch {
         'te', 'upgrade', 'connection', 'date', 'expect',
         'keep-alive', 'transfer-encoding', 'via'
     ])
-
-    static async cleanupLeakedRules() {
-        try {
-            const rules = await chrome.declarativeNetRequest.getSessionRules()
-            const leakedRuleIds = rules
-                .map(r => r.id)
-                .filter(id => id >= DNR_RULE_PREFIX && id < DNR_RULE_PREFIX + DNR_MAX_RULES)
-
-            if (leakedRuleIds.length > 0) {
-                await chrome.declarativeNetRequest.updateSessionRules({removeRuleIds: leakedRuleIds})
-                console.debug(`[ShadowFetch] Cleaned up ${leakedRuleIds.length} leaked DNR rules.`)
-            }
-        } catch (e) {
-            console.warn('[ShadowFetch] Failed to cleanup rules:', e)
-        }
-    }
 
     static _isForbiddenHeader(key) {
         const lowerKey = key.toLowerCase()
@@ -259,19 +323,18 @@ class ShadowFetch {
 
         let ruleId = null
         let magicUrl = url
-        let removeRule = () => {}
+        let removeRule = async () => {}
 
         if (anyTracking) {
-            ruleCounter = (ruleCounter + 1) % DNR_MAX_RULES
-            ruleId = DNR_RULE_PREFIX + ruleCounter
+            ruleId = await reserveRuleId()
 
             const magicUrlObj = new URL(url, globalThis.location?.origin)
             magicUrlObj.searchParams.set('_shadow_req_id', ruleId.toString())
             magicUrl = magicUrlObj.toString()
 
-            removeRule = () => {
+            removeRule = async () => {
                 if (useDnr) {
-                    chrome.declarativeNetRequest.updateSessionRules({removeRuleIds: [ruleId]}).catch(() => {})
+                    await chrome.declarativeNetRequest.updateSessionRules({removeRuleIds: [ruleId]})
                 }
             }
         }
@@ -300,8 +363,7 @@ class ShadowFetch {
             response = await fetch(magicUrl, cleanOptions)
 
             if (needCaptureRes) {
-                await new Promise(resolve => setTimeout(resolve, 10))
-                realCapturedHeaders = shadowResponseHeadersMap.get(ruleId)
+                realCapturedHeaders = await waitForResponseHeaders(ruleId)
                 if (realCapturedHeaders) {
                     response = ClassObject.#wrapResponse(response, realCapturedHeaders)
                 }
@@ -312,7 +374,13 @@ class ShadowFetch {
             fetchError = e
             throw e
         } finally {
-            removeRule()
+            try {
+                await removeRule()
+            } finally {
+                if (ruleId) {
+                    await releaseRuleId(ruleId)
+                }
+            }
 
             if (ruleId) {
                 // 只有开启了配置，才去拿真正的请求头
@@ -323,6 +391,7 @@ class ShadowFetch {
                 setTimeout(() => {
                     shadowRequestHeadersMap.delete(ruleId)
                     shadowResponseHeadersMap.delete(ruleId)
+                    responseHeaderWaiters.delete(ruleId)
                 }, 500)
             }
 
@@ -333,7 +402,5 @@ class ShadowFetch {
         }
     }
 }
-
-await ShadowFetch.cleanupLeakedRules()
 
 export const shadowFetch = (url, options, shadowOptions) => ShadowFetch.fetch(url, options, shadowOptions)

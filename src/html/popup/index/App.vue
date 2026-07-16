@@ -3,6 +3,7 @@
     <div class="header">
       <h2>4399 账号管家</h2>
       <div class="header-btns">
+        <el-button size="small" @click="openSettings">⚙ 设置</el-button>
         <el-button size="small" type="success" @click="showLoginDialog = true">🔑 登录</el-button>
         <el-button size="small" type="primary" @click="showCreateFolder = true">+ 文件夹</el-button>
       </div>
@@ -271,7 +272,7 @@
         </el-form-item>
         <el-form-item v-if="showCaptchaInput" label="验证码">
           <div class="captcha-section">
-            <img :src="captchaImageUrl" class="captcha-img" @click="refreshCaptcha"/>
+            <img :src="captchaImageUrl" class="captcha-img" @click="refreshCaptcha" alt="验证码"/>
             <el-input v-model="loginCaptcha" placeholder="输入验证码" @keyup.enter="handleCaptchaLogin"/>
           </div>
         </el-form-item>
@@ -292,14 +293,7 @@ import {computed, onMounted, ref} from 'vue'
 import {ArrowDown} from '@element-plus/icons-vue'
 import AccountCard from './components/AccountCard.vue'
 import CooldownButton from './components/CooldownButton.vue'
-import {
-  createFolder as apiCreateFolder,
-  deleteFolder as apiDeleteFolder,
-  getFolderTree,
-  moveFolder as apiMoveFolder,
-  moveUserToFolder as apiMoveUserToFolder,
-  renameFolder as apiRenameFolder
-} from '#features/folderManager.mjs'
+import FolderManager from '#features/folderManager.mjs'
 import {getCurrentUserAuth} from '#features/getCurrentUserAuth.mjs'
 import getUserInfo, {getModifyPageInfo} from '#features/getUserInfo.mjs'
 import {login, loginWithCaptcha} from '#features/login.mjs'
@@ -427,7 +421,7 @@ async function saveLoginApiKey() {
     ElMessage.warning('请输入 API Key')
     return
   }
-  await chrome.storage.local.set({aiApiKey: loginApiKey.value.trim()})
+  await FolderManager.saveApiKey(loginApiKey.value.trim())
   ElMessage.success('API Key 已保存')
 }
 
@@ -525,28 +519,13 @@ async function saveLoginResult(result) {
   const userInfo = await getUserInfo(puser, savedCookies)
   const modifyInfo = await getModifyPageInfo(savedCookies)
 
-  // 读取现有数据
-  const wrapper = await chrome.storage.local.get('info')
-  const info = wrapper.info || {}
-
-  // 保留原有的 parentFolderId
-  const existingFolderId = info[puser]?.parentFolderId
-
-  // 保存到插件存储
-  info[puser] = {
+  await FolderManager.saveAccount({
     ...(userInfo || {}),
     puser,
     cookies: savedCookies,
     email: modifyInfo?.email || '',
     qq: modifyInfo?.qq || ''
-  }
-
-  // 如果原来有文件夹位置，保留
-  if (existingFolderId !== undefined) {
-    info[puser].parentFolderId = existingFolderId
-  }
-
-  await chrome.storage.local.set({info})
+  })
 
   loginLoading.value = false
   ElMessage.success('登录成功！账号已保存')
@@ -561,9 +540,8 @@ async function saveLoginResult(result) {
 }
 
 async function refreshData() {
-  folderTree.value = await getFolderTree()
-  const wrapper = await chrome.storage.local.get('info')
-  accounts.value = wrapper.info || {}
+  folderTree.value = await FolderManager.getFolderTree()
+  accounts.value = await FolderManager.getAccounts()
 }
 
 async function saveCurrentAccount() {
@@ -586,20 +564,7 @@ async function saveCurrentAccount() {
 
   userData.cookies = btnAuth.cookies
 
-  const wrapper = await chrome.storage.local.get('info')
-  const info = wrapper.info || {}
-
-  // 保留原有的 parentFolderId
-  const existingFolderId = info[userData.puser]?.parentFolderId
-
-  info[userData.puser] = userData
-
-  // 如果原来有文件夹位置，保留
-  if (existingFolderId !== undefined) {
-    info[userData.puser].parentFolderId = existingFolderId
-  }
-
-  await chrome.storage.local.set({info})
+  await FolderManager.saveAccount(userData)
 
   auth.value = btnAuth
   ElMessage.success('保存成功！')
@@ -608,11 +573,10 @@ async function saveCurrentAccount() {
 
 async function refreshAll() {
   refreshing.value = true
-  const wrapper = await chrome.storage.local.get('info')
-  const info = wrapper.info || {}
+  const info = await FolderManager.getAccounts()
   const pusers = Object.keys(info)
 
-  let successCount = 0
+  const patches = {}
   for (const puser of pusers) {
     const acc = info[puser]
     const cookies = acc?.cookies || null
@@ -623,20 +587,18 @@ async function refreshAll() {
       userData.email = modifyInfo.email
       userData.qq = modifyInfo.qq
 
-      info[puser] = {...info[puser], ...userData}
-      successCount++
+      patches[puser] = userData
     }
   }
 
-  await chrome.storage.local.set({info})
+  const successCount = await FolderManager.patchAccounts(patches)
   ElMessage.success(`刷新完成，成功 ${successCount}/${pusers.length} 个账号`)
   await refreshData()
   refreshing.value = false
 }
 
 async function refreshUser(puser) {
-  const wrapper = await chrome.storage.local.get('info')
-  const info = wrapper.info || {}
+  const info = await FolderManager.getAccounts()
   const acc = info[puser]
   const cookies = acc?.cookies || null
   const userData = await getUserInfo(puser, cookies)
@@ -646,21 +608,20 @@ async function refreshUser(puser) {
     userData.email = modifyInfo.email
     userData.qq = modifyInfo.qq
 
-    info[puser] = {...info[puser], ...userData}
-    await chrome.storage.local.set({info})
-    ElMessage.success(`账号 ${acc.nickname} 刷新成功！`)
-    await refreshData()
+    if (await FolderManager.patchAccount(puser, userData)) {
+      ElMessage.success(`账号 ${acc.nickname} 刷新成功！`)
+      await refreshData()
+    } else {
+      ElMessage.warning('账号已被删除，未写入刷新结果')
+    }
   } else {
     ElMessage.error('刷新失败')
   }
 }
 
 async function deleteUser(puser) {
-  const wrapper = await chrome.storage.local.get('info')
-  const info = wrapper.info || {}
-  const name = info[puser]?.nickname || puser
-  delete info[puser]
-  await chrome.storage.local.set({info})
+  const account = await FolderManager.deleteAccount(puser)
+  const name = account?.nickname || puser
   ElMessage.success(`已删除账号「${name}」`)
   selectedUsers.value = selectedUsers.value.filter(p => p !== puser)
   await refreshData()
@@ -677,20 +638,14 @@ async function batchDelete() {
     return
   }
 
-  const wrapper = await chrome.storage.local.get('info')
-  const info = wrapper.info || {}
-  for (const puser of selectedUsers.value) {
-    delete info[puser]
-  }
-  await chrome.storage.local.set({info})
-  ElMessage.success(`已删除 ${selectedUsers.value.length} 个账号`)
+  const deletedCount = await FolderManager.deleteAccounts(selectedUsers.value)
+  ElMessage.success(`已删除 ${deletedCount} 个账号`)
   selectedUsers.value = []
   await refreshData()
 }
 
 async function batchEdit() {
-  const wrapper = await chrome.storage.local.get('info')
-  const info = wrapper.info || {}
+  const info = await FolderManager.getAccounts()
   const selectedAccounts = selectedUsers.value.map(puser => info[puser]).filter(Boolean)
 
   if (selectedAccounts.length === 0) {
@@ -710,9 +665,13 @@ async function batchImport() {
   await windowManager.create('src/html/popup/batchImport/index.html', {width: 600, height: 500})
 }
 
+async function openSettings() {
+  await windowManager.create('src/html/popup/settings/index.html', {width: 500, height: 600})
+}
+
 // ====== 文件夹操作 ======
 async function createFolder() {
-  const result = await apiCreateFolder(newFolderName.value, newFolderParent.value)
+  const result = await FolderManager.createFolder(newFolderName.value, newFolderParent.value)
   if (result.success) {
     ElMessage.success('文件夹创建成功')
     showCreateFolder.value = false
@@ -731,7 +690,7 @@ function openRenameFolder(folder) {
 }
 
 async function renameFolder() {
-  const result = await apiRenameFolder(renameFolderId.value, renameFolderName.value)
+  const result = await FolderManager.renameFolder(renameFolderId.value, renameFolderName.value)
   if (result.success) {
     ElMessage.success('重命名成功')
     showRenameFolder.value = false
@@ -743,7 +702,7 @@ async function renameFolder() {
 
 async function deleteFolder(id) {
   openDeletePopoverId.value = null
-  const result = await apiDeleteFolder(id)
+  const result = await FolderManager.deleteFolder(id)
   if (result.success) {
     ElMessage.success(`已删除文件夹及 ${result.deletedUsers} 个账号`)
     await refreshData()
@@ -753,7 +712,7 @@ async function deleteFolder(id) {
 }
 
 async function moveFolderTo(folder, newParentId) {
-  const result = await apiMoveFolder(folder.id, newParentId)
+  const result = await FolderManager.moveFolder(folder.id, newParentId)
   if (result.success) {
     ElMessage.success('移动成功')
     await refreshData()
@@ -763,7 +722,7 @@ async function moveFolderTo(folder, newParentId) {
 }
 
 async function moveUserToFolder(puser, folderId) {
-  const result = await apiMoveUserToFolder(puser, folderId)
+  const result = await FolderManager.moveUserToFolder(puser, folderId)
   if (result.success) {
     ElMessage.success('移动成功')
     await refreshData()
@@ -774,7 +733,7 @@ async function moveUserToFolder(puser, folderId) {
 
 async function batchMoveToFolder(folderId) {
   for (const puser of selectedUsers.value) {
-    await apiMoveUserToFolder(puser, folderId)
+    await FolderManager.moveUserToFolder(puser, folderId)
   }
   ElMessage.success(`已移动 ${selectedUsers.value.length} 个账号`)
   selectedUsers.value = []
@@ -799,9 +758,9 @@ onMounted(async () => {
   })
 
   // 加载 API Key
-  const wrapper = await chrome.storage.local.get('aiApiKey')
-  if (wrapper.aiApiKey) {
-    loginApiKey.value = wrapper.aiApiKey
+  const aiApiKey = await FolderManager.getApiKey()
+  if (aiApiKey) {
+    loginApiKey.value = aiApiKey
   }
 
   auth.value = await getCurrentUserAuth()

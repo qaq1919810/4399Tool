@@ -75,14 +75,15 @@
 </template>
 
 <script setup>
-import {computed, nextTick, onMounted, reactive, ref} from 'vue'
-import {modifyAvatar, modifyUserInfo} from '#features/modifyUserInfo.mjs'
+import {computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch} from 'vue'
+import {modifyProfileAndAvatar} from '#features/modifyUserInfo.mjs'
 import {getRegionData} from '#utils/regionData.mjs'
 
 const accounts = ref([])
 const submitting = ref(false)
 const results = ref([])
 const avatarUploadRef = ref(null)
+const avatarPreviewUrl = ref('')
 
 const form = reactive({
   sex: '',
@@ -99,13 +100,21 @@ const cityOptions = computed(() => {
   return form.province ? (cityMap.value[form.province] || []) : []
 })
 
-const avatarPreviewUrl = computed(() => {
-  if (!form.avatar) return ''
-  return URL.createObjectURL(form.avatar)
-})
-
 const hasChanges = computed(() => {
   return form.sex || form.birthday || form.province || form.city || form.avatar
+})
+
+watch(() => form.avatar, (avatar) => {
+  if (avatarPreviewUrl.value) {
+    URL.revokeObjectURL(avatarPreviewUrl.value)
+  }
+  avatarPreviewUrl.value = avatar ? URL.createObjectURL(avatar) : ''
+})
+
+onBeforeUnmount(() => {
+  if (avatarPreviewUrl.value) {
+    URL.revokeObjectURL(avatarPreviewUrl.value)
+  }
 })
 
 onMounted(async () => {
@@ -142,12 +151,7 @@ async function handleSubmit() {
 
   for (const acc of accounts.value) {
     try {
-      let result
-      if (form.avatar) {
-        result = await modifyAvatar(form.avatar, acc.cookies)
-      } else {
-        result = await modifyUserInfo(params, acc.cookies)
-      }
+      const result = await modifyProfileAndAvatar(params, form.avatar, acc.cookies)
       results.value.push({
         puser: acc.puser,
         nickname: acc.nickname || acc.username,

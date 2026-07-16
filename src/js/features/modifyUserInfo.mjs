@@ -256,3 +256,45 @@ export async function modifyAvatar(file, cookies = null) {
         return {success: false, message: error.message || '网络错误'}
     }
 }
+
+/**
+ * 按顺序修改资料和头像。资料请求先完成，头像上传失败时仍保留已经成功的资料修改结果。
+ * @param {Object} params - 资料修改参数；传入空对象时跳过资料修改
+ * @param {File|null} avatar - 新头像；为空时跳过头像上传
+ * @param {Array} cookies - 指定账号的 Cookie
+ * @returns {Promise<{success: boolean, partial: boolean, profileResult?: Object, avatarResult?: Object, message?: string}>}
+ */
+export async function modifyProfileAndAvatar(params, avatar, cookies = null) {
+    const hasProfileChanges = Object.keys(params).length > 0
+    let profileResult
+    let avatarResult
+
+    if (hasProfileChanges) {
+        profileResult = await modifyUserInfo(params, cookies)
+        if (!profileResult.success) {
+            return {
+                success: false,
+                partial: false,
+                profileResult,
+                message: profileResult.message || '资料修改失败'
+            }
+        }
+    }
+
+    if (avatar) {
+        avatarResult = await modifyAvatar(avatar, cookies)
+        if (!avatarResult.success) {
+            return {
+                success: false,
+                partial: hasProfileChanges,
+                profileResult,
+                avatarResult,
+                message: hasProfileChanges
+                    ? `资料修改成功，但头像上传失败：${avatarResult.message || '未知错误'}`
+                    : avatarResult.message || '头像上传失败'
+            }
+        }
+    }
+
+    return {success: true, partial: false, profileResult, avatarResult}
+}
