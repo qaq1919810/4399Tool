@@ -51,143 +51,25 @@
 
     <!-- 账号列表 -->
     <div class="account-list">
-      <template v-for="folder in folderTree" :key="folder.id">
-        <!-- 文件夹 -->
-        <div class="folder-block">
-          <div class="folder-header">
-            <el-checkbox
-                :model-value="isFolderSelected(folder.id)"
-                @change="toggleFolderSelect(folder.id)"
-            />
-            <span class="folder-name">{{ folder.folderName }}</span>
-            <div class="folder-actions">
-              <el-button size="small" text @click="openRenameFolder(folder)">✏️</el-button>
-              <el-dropdown @command="(cmd) => moveFolderTo(folder, cmd)" trigger="click">
-                <el-button size="small" text>📦</el-button>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item :command="null">📄 顶层</el-dropdown-item>
-                    <!--suppress JSUnusedLocalSymbols -->
-                    <el-dropdown-item
-                        v-for="f in flatFolders.filter(f => f.id !== folder.id && !isChildOf(folder.id, f.id))"
-                        :key="f.id"
-                        :command="f.id"
-                    >
-                      {{ '📂 ' + f.folderName }}
-                    </el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
-              <el-popover
-                  placement="top"
-                  :width="280"
-                  :visible="openDeletePopoverId === folder.id"
-              >
-                <template #reference>
-                  <el-button size="small" text type="danger" @click="openDeletePopoverId = folder.id">🗑️</el-button>
-                </template>
-                <div class="delete-confirm">
-                  <p>确定删除文件夹「{{ folder.folderName }}」？</p>
-                  <p class="delete-warn">内部 {{ countUsersInFolder(folder.id) }} 个账号也会被删除</p>
-                  <div class="delete-actions">
-                    <el-button size="small" @click="closePopover">取消</el-button>
-                    <CooldownButton
-                        :seconds="3"
-                        type="danger"
-                        size="small"
-                        @confirm="deleteFolder(folder.id)"
-                    />
-                  </div>
-                </div>
-              </el-popover>
-            </div>
-          </div>
-
-          <!-- 文件夹内的用户 -->
-          <div class="folder-users">
-            <AccountCard
-                v-for="user in getUsersInFolder(folder.id)"
-                :key="user.puser"
-                :user="user"
-                :checked="selectedUsers.includes(user.puser)"
-                @toggle="toggleSelect(user.puser)"
-                @refresh="refreshUser"
-                @delete="deleteUser"
-                @move="moveUserToFolder"
-                :folders="flatFolders"
-            />
-            <div v-if="getUsersInFolder(folder.id).length === 0" class="empty-hint">暂无账号</div>
-          </div>
-
-          <!-- 子文件夹 -->
-          <template v-for="child in folder.children" :key="child.id">
-            <div class="folder-block sub-folder">
-              <div class="folder-header">
-                <el-checkbox
-                    :model-value="isFolderSelected(child.id)"
-                    @change="toggleFolderSelect(child.id)"
-                />
-                <span class="folder-name">{{ child.folderName }}</span>
-                <div class="folder-actions">
-                  <el-button size="small" text @click="openRenameFolder(child)">✏️</el-button>
-                  <el-dropdown @command="(cmd) => moveFolderTo(child, cmd)" trigger="click">
-                    <el-button size="small" text>📦</el-button>
-                    <template #dropdown>
-                      <el-dropdown-menu>
-                        <el-dropdown-item :command="null">📄 顶层</el-dropdown-item>
-                        <!--suppress JSUnusedLocalSymbols -->
-                        <el-dropdown-item
-                            v-for="f in flatFolders.filter(f => f.id !== child.id && !isChildOf(child.id, f.id))"
-                            :key="f.id"
-                            :command="f.id"
-                        >
-                          {{ '📂 ' + f.folderName }}
-                        </el-dropdown-item>
-                      </el-dropdown-menu>
-                    </template>
-                  </el-dropdown>
-                  <el-popover
-                      placement="top"
-                      :width="280"
-                      :visible="openDeletePopoverId === child.id"
-                  >
-                    <template #reference>
-                      <el-button size="small" text type="danger" @click="openDeletePopoverId = child.id">🗑️</el-button>
-                    </template>
-                    <div class="delete-confirm">
-                      <p>确定删除文件夹「{{ child.folderName }}」？</p>
-                      <p class="delete-warn">内部 {{ countUsersInFolder(child.id) }} 个账号也会被删除</p>
-                      <div class="delete-actions">
-                        <el-button size="small" @click="closePopover">取消</el-button>
-                        <CooldownButton
-                            :seconds="3"
-                            type="danger"
-                            size="small"
-                            @confirm="deleteFolder(child.id)"
-                        />
-                      </div>
-                    </div>
-                  </el-popover>
-                </div>
-              </div>
-              <div class="folder-users">
-                <AccountCard
-                    v-for="user in getUsersInFolder(child.id)"
-                    :key="user.puser"
-                    :user="user"
-                    :checked="selectedUsers.includes(user.puser)"
-                    @toggle="toggleSelect(user.puser)"
-                    @refresh="refreshUser"
-                    @delete="deleteUser"
-                    @move="moveUserToFolder"
-                    :folders="flatFolders"
-                />
-                <div v-if="getUsersInFolder(child.id).length === 0" class="empty-hint">暂无账号</div>
-              </div>
-            </div>
-          </template>
-        </div>
-      </template>
+      <FolderNode
+          v-for="folder in folderTree"
+          :key="folder.id"
+          :folder="folder"
+          :accounts="allUsers"
+          :selected-users="selectedUsers"
+          :flat-folders="flatFolders"
+          :open-delete-popover-id="openDeletePopoverId"
+          @toggle-user="toggleSelect"
+          @toggle-folder-select="toggleFolderSelect"
+          @refresh-user="refreshUser"
+          @delete-user="deleteUser"
+          @move-user="moveUserToFolder"
+          @rename-folder="openRenameFolder"
+          @move-folder="moveFolderTo"
+          @open-delete="folderId => openDeletePopoverId = folderId"
+          @close-delete="closePopover"
+          @delete-folder="deleteFolder"
+      />
 
       <!-- 顶层用户 -->
       <div class="top-level">
@@ -292,7 +174,7 @@
 import {computed, onMounted, ref} from 'vue'
 import {ArrowDown} from '@element-plus/icons-vue'
 import AccountCard from './components/AccountCard.vue'
-import CooldownButton from './components/CooldownButton.vue'
+import FolderNode from './components/FolderNode.vue'
 import FolderManager from '#features/folderManager.mjs'
 import {getCurrentUserAuth} from '#features/getCurrentUserAuth.mjs'
 import getUserInfo, {getModifyPageInfo} from '#features/getUserInfo.mjs'
@@ -360,25 +242,6 @@ function getUsersInFolder(folderId) {
   return allUsers.value.filter(u => (u.parentFolderId ?? null) === folderId)
 }
 
-function countUsersInFolder(folderId) {
-  let count = getUsersInFolder(folderId).length
-  const children = folderTree.value.find(f => f.id === folderId)?.children || []
-  for (const child of children) {
-    count += countUsersInFolder(child.id)
-  }
-  return count
-}
-
-function isChildOf(parentId, childId) {
-  const parent = folderTree.value.find(f => f.id === parentId)
-  if (!parent?.children) return false
-  for (const child of parent.children) {
-    if (child.id === childId) return true
-    if (isChildOf(child.id, childId)) return true
-  }
-  return false
-}
-
 function toggleSelect(puser) {
   const idx = selectedUsers.value.indexOf(puser)
   if (idx >= 0) {
@@ -396,16 +259,33 @@ function toggleSelectAll(val) {
   }
 }
 
+function getDescendantFolderIds(folderId) {
+  if (folderId === null) return new Set([null])
+  const root = flatFolders.value.find(folder => folder.id === folderId)
+  if (!root) return new Set()
+
+  const ids = new Set([root.id])
+  const visit = children => {
+    for (const child of children || []) {
+      ids.add(child.id)
+      visit(child.children)
+    }
+  }
+  visit(root.children)
+  return ids
+}
+
 function isFolderSelected(folderId) {
-  const users = getUsersInFolder(folderId)
-  if (users.length === 0) return false
-  return users.every(u => selectedUsers.value.includes(u.puser))
+  const folderIds = getDescendantFolderIds(folderId)
+  const users = allUsers.value.filter(user => folderIds.has(user.parentFolderId ?? null))
+  return users.length > 0 && users.every(user => selectedUsers.value.includes(user.puser))
 }
 
 function toggleFolderSelect(folderId) {
-  const users = getUsersInFolder(folderId)
+  const folderIds = getDescendantFolderIds(folderId)
+  const users = allUsers.value.filter(user => folderIds.has(user.parentFolderId ?? null))
   const pusers = users.map(u => u.puser)
-  const allSelected = pusers.every(p => selectedUsers.value.includes(p))
+  const allSelected = pusers.length > 0 && pusers.every(p => selectedUsers.value.includes(p))
 
   if (allSelected) {
     selectedUsers.value = selectedUsers.value.filter(p => !pusers.includes(p))
@@ -839,18 +719,6 @@ body {
   gap: 12px;
 }
 
-.folder-block {
-  background: white;
-  border-radius: 8px;
-  border: 1px solid #e0e0e0;
-  overflow: hidden;
-}
-
-.folder-block.sub-folder {
-  margin: 8px 12px;
-  border: 1px dashed #ccc;
-}
-
 .folder-header {
   display: flex;
   justify-content: space-between;
@@ -867,25 +735,6 @@ body {
   flex: 1;
 }
 
-.folder-actions {
-  display: flex;
-  gap: 2px;
-}
-
-.folder-users {
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.empty-hint {
-  text-align: center;
-  color: #999;
-  font-size: 12px;
-  padding: 12px;
-}
-
 .top-level {
   margin-top: 4px;
 }
@@ -894,23 +743,6 @@ body {
   text-align: center;
   color: #999;
   padding: 40px;
-}
-
-.delete-confirm p {
-  margin: 0 0 8px;
-  font-size: 14px;
-}
-
-.delete-warn {
-  color: #f56c6c;
-  font-size: 12px !important;
-}
-
-.delete-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 12px;
 }
 
 .captcha-section {
