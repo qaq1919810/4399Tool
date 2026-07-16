@@ -81,11 +81,16 @@ function extractCredentials(rawText) {
   if (!rawText.trim()) {
     return []
   }
-  const regex = /^([a-zA-Z0-9]+)\D+.*?([a-zA-Z0-9]+)\D*$/gm
-  return Array.from(rawText.matchAll(regex), match => ({
-    username: match[1],
-    password: match[2]
-  }))
+  return rawText
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(Boolean)
+    .map(line => line.match(/^([a-zA-Z0-9!@#$%&()_]+)[^!@#$%&()_\r\n]+?([a-zA-Z0-9!@#$%&()_]+)$/))
+    .filter(Boolean)
+    .map(match => ({
+      username: match[1],
+      password: match[2]
+    }))
 }
 
 function convert() {

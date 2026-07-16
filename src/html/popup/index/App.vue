@@ -23,7 +23,7 @@
 
     <div class="sort-bar">
       <span class="sort-label">文件夹排序</span>
-      <el-select v-model="folderSortBy" size="small" class="sort-select" @change="refreshData">
+      <el-select v-model="folderSortBy" size="small" class="sort-select" @change="changeFolderSortBy">
         <el-option value="createdAt" label="创建时间"/>
         <el-option value="updatedAt" label="最后修改时间"/>
         <el-option value="name" label="首字母"/>
@@ -154,8 +154,8 @@
     </el-dialog>
 
     <!-- 登录对话框 -->
-    <el-dialog v-model="showLoginDialog" title="4399 登录" width="360px">
-      <el-form label-width="60px">
+    <el-dialog v-model="showLoginDialog" title="4399 登录" width="80%">
+      <el-form class="login-form" label-width="100px">
         <el-form-item label="账号">
           <el-input v-model="loginForm.username" placeholder="用户名或手机号" @keyup.enter="handleLogin"/>
         </el-form-item>
@@ -211,8 +211,16 @@ const loading = ref(true)
 const auth = ref(null)
 const accounts = ref({})
 const folderTree = ref([])
-const folderSortBy = ref('updatedAt')
-const folderSortDirection = ref('desc')
+const FOLDER_SORT_BY_KEY = '4399-folder-sort-by'
+const FOLDER_SORT_DIRECTION_KEY = '4399-folder-sort-direction'
+const FOLDER_SORT_BY_VALUES = new Set(['createdAt', 'updatedAt', 'name', 'accountCount'])
+const FOLDER_SORT_DIRECTION_VALUES = new Set(['asc', 'desc'])
+const savedFolderSortBy = localStorage.getItem(FOLDER_SORT_BY_KEY)
+const savedFolderSortDirection = localStorage.getItem(FOLDER_SORT_DIRECTION_KEY)
+const folderSortBy = ref(FOLDER_SORT_BY_VALUES.has(savedFolderSortBy) ? savedFolderSortBy : 'updatedAt')
+const folderSortDirection = ref(
+    FOLDER_SORT_DIRECTION_VALUES.has(savedFolderSortDirection) ? savedFolderSortDirection : 'desc'
+)
 const selectedUsers = ref([])
 const refreshing = ref(false)
 
@@ -457,8 +465,14 @@ async function refreshData() {
   accounts.value = await FolderManager.getAccounts()
 }
 
+async function changeFolderSortBy() {
+  localStorage.setItem(FOLDER_SORT_BY_KEY, folderSortBy.value)
+  await refreshData()
+}
+
 async function toggleFolderSortDirection() {
   folderSortDirection.value = folderSortDirection.value === 'asc' ? 'desc' : 'asc'
+  localStorage.setItem(FOLDER_SORT_DIRECTION_KEY, folderSortDirection.value)
   await refreshData()
 }
 
@@ -816,6 +830,11 @@ body {
 
 .sort-select {
   flex: 1;
+}
+
+.login-form .el-form-item__label,
+.login-form .el-checkbox__label {
+  white-space: nowrap;
 }
 
 .btn-save {

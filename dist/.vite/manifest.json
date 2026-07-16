@@ -198,7 +198,7 @@
     ]
   },
   "src/html/popup/batchImport/index.html": {
-    "file": "assets/src\\html\\popup\\batchImport\\index-D1n9bOkh.js",
+    "file": "assets/src\\html\\popup\\batchImport\\index-DqpcRyJO.js",
     "name": "src\\html\\popup\\batchImport\\index",
     "src": "src/html/popup/batchImport/index.html",
     "isEntry": true,
@@ -212,11 +212,11 @@
       "_login-DDxtQTdK.js"
     ],
     "css": [
-      "assets/index-BtKGCplp.css"
+      "assets/index-D-e5oFoX.css"
     ]
   },
   "src/html/popup/index/index.html": {
-    "file": "assets/src\\html\\popup\\index\\index-6s0n65gU.js",
+    "file": "assets/src\\html\\popup\\index\\index-C0MpS-ll.js",
     "name": "src\\html\\popup\\index\\index",
     "src": "src/html/popup/index/index.html",
     "isEntry": true,
@@ -235,7 +235,7 @@
       "_login-DDxtQTdK.js"
     ],
     "css": [
-      "assets/index-F7IMDqsm.css"
+      "assets/index-BBE-OeOm.css"
     ]
   },
   "src/html/popup/settings/index.html": {
