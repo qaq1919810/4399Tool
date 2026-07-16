@@ -2,8 +2,12 @@
   <div class="batch-import">
     <h3>批量导入</h3>
 
+    <el-checkbox v-model="useAiCaptcha" class="ai-captcha-option" @change="saveAiCaptchaPreference">
+      使用 AI 自动识别验证码
+    </el-checkbox>
+
     <!-- API Key 配置 -->
-    <div class="api-key-section">
+    <div v-if="useAiCaptcha" class="api-key-section">
       <el-input
         v-model="apiKey"
         type="password"
@@ -83,6 +87,8 @@ const apiKey = ref('')
 const savePasswords = ref(false)
 const showImportResult = ref(false)
 const importResult = ref({total: 0, success: 0, fail: 0})
+const AI_CAPTCHA_PREFERENCE_KEY = '4399-use-ai-captcha'
+const useAiCaptcha = ref(localStorage.getItem(AI_CAPTCHA_PREFERENCE_KEY) === 'true')
 
 onMounted(async () => {
   const savedApiKey = await FolderManager.getApiKey()
@@ -98,6 +104,10 @@ async function saveApiKey() {
   }
   await FolderManager.saveApiKey(apiKey.value.trim())
   ElMessage.success('API Key 已保存')
+}
+
+function saveAiCaptchaPreference(value) {
+  localStorage.setItem(AI_CAPTCHA_PREFERENCE_KEY, value === true ? 'true' : 'false')
 }
 
 /**
@@ -165,7 +175,7 @@ async function acceptAndLogin() {
     return
   }
 
-  if (!apiKey.value.trim()) {
+  if (useAiCaptcha.value && !apiKey.value.trim()) {
     ElMessage.warning('请先配置 API Key')
     return
   }
@@ -178,7 +188,7 @@ async function acceptAndLogin() {
 
   // 并发登录所有账号（验证码各自并行处理）
   const tasks = accounts.map(acc => login(acc.username, acc.password, {
-    apiKey: apiKey.value.trim()
+    apiKey: useAiCaptcha.value ? apiKey.value.trim() : ''
   }))
   const results = await Promise.allSettled(tasks)
 

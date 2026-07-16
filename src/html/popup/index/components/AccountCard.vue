@@ -192,9 +192,10 @@
           </el-upload>
         </div>
       </div>
-      <el-button type="primary" size="small" @click="handleSaveEdit" :loading="saving" style="width: 100%">
-        保存修改
-      </el-button>
+      <div class="edit-actions">
+        <el-button size="small" :disabled="saving" @click="showEditForm = false">收起修改</el-button>
+        <el-button type="primary" size="small" @click="handleSaveEdit" :loading="saving">保存修改</el-button>
+      </div>
     </div>
   </div>
 
@@ -249,9 +250,40 @@
         :disabled="recordingPassword"
         @keyup.enter="submitPassword"
     />
+    <el-checkbox v-model="recordPasswordUseAi" :disabled="recordingPassword" class="password-captcha-option">
+      使用 AI 自动识别验证码
+    </el-checkbox>
+    <div v-if="recordPasswordUseAi" class="password-api-key-section">
+      <el-input
+          v-model="recordPasswordApiKey"
+          type="password"
+          placeholder="Gemini API Key"
+          show-password
+          :disabled="recordingPassword"
+      />
+      <el-button :disabled="recordingPassword" @click="saveRecordPasswordApiKey">保存</el-button>
+    </div>
+    <div v-if="recordPasswordNeedCaptcha && !recordPasswordUseAi" class="password-captcha-section">
+      <img
+          :src="recordPasswordCaptchaUrl"
+          class="password-captcha-img"
+          alt="验证码"
+          title="点击刷新验证码"
+          @click="refreshRecordPasswordCaptcha"
+      />
+      <el-input
+          v-model="recordPasswordCaptcha"
+          placeholder="请输入验证码"
+          maxlength="4"
+          :disabled="recordingPassword"
+          @keyup.enter="submitPassword"
+      />
+    </div>
     <template #footer>
       <el-button :disabled="recordingPassword" @click="closeRecordPasswordDialog">取消</el-button>
-      <el-button type="primary" :loading="recordingPassword" @click="submitPassword">验证并保存</el-button>
+      <el-button type="primary" :loading="recordingPassword" @click="submitPassword">
+        {{ recordPasswordNeedCaptcha && !recordPasswordUseAi ? '提交验证码并保存' : '验证并保存' }}
+      </el-button>
     </template>
   </el-dialog>
 
@@ -319,7 +351,8 @@ import {systemNotification} from '#utils/notify.mjs'
 const props = defineProps({
   user: Object,
   checked: Boolean,
-  folders: Array
+  folders: Array,
+  aiApiKey: {type: String, default: ''}
 })
 
 const emit = defineEmits([
@@ -329,6 +362,7 @@ const emit = defineEmits([
   'move',
   'save-remark',
   'record-password',
+  'save-api-key',
   'copy-password',
   'delete-password'
 ])
@@ -355,6 +389,13 @@ const showDeletePasswordDialog = ref(false)
 const showRecordPasswordDialog = ref(false)
 const passwordInput = ref('')
 const recordingPassword = ref(false)
+const AI_CAPTCHA_PREFERENCE_KEY = '4399-use-ai-captcha'
+const recordPasswordUseAi = ref(false)
+const recordPasswordApiKey = ref('')
+const recordPasswordNeedCaptcha = ref(false)
+const recordPasswordSessionId = ref('')
+const recordPasswordCaptcha = ref('')
+const recordPasswordCaptchaUrl = ref('')
 
 const avatarUrl = ref('https://via.placeholder.com/48')
 const avatarObjectUrl = ref('')
@@ -569,6 +610,9 @@ function handleCommand(cmd) {
     showRemarkDialog.value = true
   } else if (cmd === 'record-password') {
     passwordInput.value = ''
+    recordPasswordUseAi.value = localStorage.getItem(AI_CAPTCHA_PREFERENCE_KEY) === 'true'
+    recordPasswordApiKey.value = props.aiApiKey
+    resetRecordPasswordCaptcha()
     showRecordPasswordDialog.value = true
   } else if (cmd === 'copy-password') {
     emit('copy-password', props.user.puser)
@@ -596,7 +640,36 @@ function confirmDeletePassword() {
 function closeRecordPasswordDialog() {
   if (recordingPassword.value) return
   passwordInput.value = ''
+  resetRecordPasswordCaptcha()
   showRecordPasswordDialog.value = false
+}
+
+function resetRecordPasswordCaptcha() {
+  recordPasswordNeedCaptcha.value = false
+  recordPasswordSessionId.value = ''
+  recordPasswordCaptcha.value = ''
+  recordPasswordCaptchaUrl.value = ''
+}
+
+function refreshRecordPasswordCaptcha() {
+  if (!recordPasswordSessionId.value) return
+  recordPasswordCaptchaUrl.value = `https://ptlogin.4399.com/ptlogin/captcha.do?captchaId=${recordPasswordSessionId.value}&t=${Date.now()}`
+  recordPasswordCaptcha.value = ''
+}
+
+watch(recordPasswordUseAi, value => {
+  localStorage.setItem(AI_CAPTCHA_PREFERENCE_KEY, value ? 'true' : 'false')
+  if (value) resetRecordPasswordCaptcha()
+})
+
+async function saveRecordPasswordApiKey() {
+  if (!recordPasswordApiKey.value.trim()) {
+    ElMessage.warning('请输入 API Key')
+    return
+  }
+  await new Promise(resolve => {
+    emit('save-api-key', recordPasswordApiKey.value, resolve)
+  })
 }
 
 async function submitPassword() {
@@ -604,16 +677,35 @@ async function submitPassword() {
     ElMessage.warning('请输入密码')
     return
   }
+  if (recordPasswordNeedCaptcha.value && !recordPasswordUseAi.value && !recordPasswordCaptcha.value.trim()) {
+    ElMessage.warning('请输入验证码')
+    return
+  }
   recordingPassword.value = true
-  let success = false
+  let result = {success: false}
   try {
-    success = await new Promise(resolve => {
-      emit('record-password', props.user.puser, passwordInput.value, resolve)
+    result = await new Promise(resolve => {
+      emit('record-password', props.user.puser, {
+        password: passwordInput.value,
+        useAi: recordPasswordUseAi.value,
+        apiKey: recordPasswordApiKey.value.trim(),
+        sessionId: recordPasswordSessionId.value,
+        captchaText: recordPasswordCaptcha.value.trim()
+      }, resolve)
     })
   } finally {
     recordingPassword.value = false
   }
-  if (success) closeRecordPasswordDialog()
+  if (result.success) {
+    closeRecordPasswordDialog()
+    return
+  }
+  if (result.needCaptcha) {
+    recordPasswordNeedCaptcha.value = true
+    recordPasswordSessionId.value = result.sessionId
+    recordPasswordCaptcha.value = ''
+    recordPasswordCaptchaUrl.value = `https://ptlogin.4399.com/ptlogin/captcha.do?captchaId=${result.sessionId}&t=${Date.now()}`
+  }
 }
 
 function handleMove(folderId) {
@@ -723,6 +815,33 @@ async function handleSaveEdit() {
   margin: 0 0 12px;
   color: #606266;
   font-size: 13px;
+}
+
+.password-captcha-option {
+  margin-top: 12px;
+}
+
+.password-api-key-section {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.password-captcha-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.password-captcha-img {
+  width: 120px;
+  height: 40px;
+  flex-shrink: 0;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  object-fit: contain;
+  cursor: pointer;
 }
 
 .info h4 .el-tag {
@@ -952,6 +1071,17 @@ async function handleSaveEdit() {
   font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.edit-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.edit-actions .el-button {
+  width: 100%;
+  margin-left: 0;
 }
 
 .move-item:hover {

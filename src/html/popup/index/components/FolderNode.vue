@@ -63,12 +63,14 @@
             :user="user"
             :checked="selectedUsers.includes(user.puser)"
             :folders="flatFolders"
+            :ai-api-key="aiApiKey"
             @toggle="emit('toggle-user', user.puser)"
             @refresh="puser => emit('refresh-user', puser)"
             @delete="puser => emit('delete-user', puser)"
             @move="(puser, folderId) => emit('move-user', puser, folderId)"
             @save-remark="(puser, remark) => emit('save-remark', puser, remark)"
-            @record-password="(puser, password, done) => emit('record-password', puser, password, done)"
+            @record-password="(puser, options, done) => emit('record-password', puser, options, done)"
+            @save-api-key="(apiKey, done) => emit('save-api-key', apiKey, done)"
             @copy-password="puser => emit('copy-password', puser)"
             @delete-password="puser => emit('delete-password', puser)"
         />
@@ -82,6 +84,7 @@
             :accounts="accounts"
             :selected-users="selectedUsers"
             :flat-folders="flatFolders"
+            :ai-api-key="aiApiKey"
             :open-delete-popover-id="openDeletePopoverId"
             :depth="depth + 1"
             @toggle-user="puser => emit('toggle-user', puser)"
@@ -90,7 +93,8 @@
             @delete-user="puser => emit('delete-user', puser)"
             @move-user="(puser, folderId) => emit('move-user', puser, folderId)"
             @save-remark="(puser, remark) => emit('save-remark', puser, remark)"
-            @record-password="(puser, password, done) => emit('record-password', puser, password, done)"
+            @record-password="(puser, options, done) => emit('record-password', puser, options, done)"
+            @save-api-key="(apiKey, done) => emit('save-api-key', apiKey, done)"
             @copy-password="puser => emit('copy-password', puser)"
             @delete-password="puser => emit('delete-password', puser)"
             @rename-folder="target => emit('rename-folder', target)"
@@ -118,6 +122,7 @@ const props = defineProps({
   accounts: {type: Array, required: true},
   selectedUsers: {type: Array, required: true},
   flatFolders: {type: Array, required: true},
+  aiApiKey: {type: String, default: ''},
   openDeletePopoverId: {default: null},
   depth: {type: Number, default: 0}
 })
@@ -130,6 +135,7 @@ const emit = defineEmits([
   'move-user',
   'save-remark',
   'record-password',
+  'save-api-key',
   'copy-password',
   'delete-password',
   'rename-folder',

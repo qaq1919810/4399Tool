@@ -81,8 +81,8 @@
       "__plugin-vue_export-helper-BHtbk-hU.js"
     ]
   },
-  "_login-D4iMIxL0.js": {
-    "file": "assets/login-D4iMIxL0.js",
+  "_login-lcEzxRxl.js": {
+    "file": "assets/login-lcEzxRxl.js",
     "name": "login",
     "imports": [
       "__plugin-vue_export-helper-BHtbk-hU.js",
@@ -180,7 +180,7 @@
     ]
   },
   "src/html/popup/batchImport/index.html": {
-    "file": "assets/src\\html\\popup\\batchImport\\index-C2JHChcJ.js",
+    "file": "assets/src\\html\\popup\\batchImport\\index-SdskItmz.js",
     "name": "src\\html\\popup\\batchImport\\index",
     "src": "src/html/popup/batchImport/index.html",
     "isEntry": true,
@@ -191,14 +191,14 @@
       "_folderManager-BLdRMaFh.js",
       "_shadowFetch-4lOjhzK_.js",
       "_css-DeZRj3Ui.js",
-      "_login-D4iMIxL0.js"
+      "_login-lcEzxRxl.js"
     ],
     "css": [
-      "assets/index-OZy0pzVY.css"
+      "assets/index-lSmGutLK.css"
     ]
   },
   "src/html/popup/index/index.html": {
-    "file": "assets/src\\html\\popup\\index\\index-92FQN-Gs.js",
+    "file": "assets/src\\html\\popup\\index\\index-DZODbUyk.js",
     "name": "src\\html\\popup\\index\\index",
     "src": "src/html/popup/index/index.html",
     "isEntry": true,
@@ -213,10 +213,10 @@
       "_shadowFetch-4lOjhzK_.js",
       "_windowManager-Z8eNDecs.js",
       "_css-DeZRj3Ui.js",
-      "_login-D4iMIxL0.js"
+      "_login-lcEzxRxl.js"
     ],
     "css": [
-      "assets/index-B67GJymv.css"
+      "assets/index-CeziWfnq.css"
     ]
   },
   "src/html/popup/settings/index.html": {

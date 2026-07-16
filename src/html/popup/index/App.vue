@@ -71,6 +71,7 @@
           :accounts="allUsers"
           :selected-users="selectedUsers"
           :flat-folders="flatFolders"
+          :ai-api-key="loginApiKey"
           :open-delete-popover-id="openDeletePopoverId"
           @toggle-user="toggleSelect"
           @toggle-folder-select="toggleFolderSelect"
@@ -79,6 +80,7 @@
           @move-user="moveUserToFolder"
           @save-remark="saveRemark"
           @record-password="recordPassword"
+          @save-api-key="saveRecordPasswordApiKey"
           @copy-password="copyPassword"
           @delete-password="deletePassword"
           @rename-folder="openRenameFolder"
@@ -102,12 +104,14 @@
             :key="user.puser"
             :user="user"
             :checked="selectedUsers.includes(user.puser)"
+            :ai-api-key="loginApiKey"
             @toggle="toggleSelect(user.puser)"
             @refresh="refreshUser"
             @delete="deleteUser"
             @move="moveUserToFolder"
             @save-remark="saveRemark"
             @record-password="recordPassword"
+            @save-api-key="saveRecordPasswordApiKey"
             @copy-password="copyPassword"
             @delete-password="deletePassword"
             :folders="flatFolders"
@@ -166,7 +170,7 @@
         <el-form-item label="保存密码">
           <el-checkbox v-model="saveLoginPassword">保存到插件本地</el-checkbox>
         </el-form-item>
-        <el-form-item label="API Key">
+        <el-form-item v-if="loginUseAi" label="API Key">
           <div style="display: flex; gap: 8px; width: 100%">
             <el-input v-model="loginApiKey" type="password" placeholder="Gemini API Key（可选）" show-password
                       style="flex: 1"/>
@@ -174,7 +178,9 @@
           </div>
         </el-form-item>
         <el-form-item label="验证码">
-          <el-checkbox v-model="manualCaptcha">手动输入验证码</el-checkbox>
+          <el-checkbox v-model="loginUseAi" @change="saveAiCaptchaPreference">
+            使用 AI 自动识别验证码
+          </el-checkbox>
         </el-form-item>
         <el-form-item v-if="showCaptchaInput" label="验证码">
           <div class="captcha-section">
@@ -213,6 +219,7 @@ const accounts = ref({})
 const folderTree = ref([])
 const FOLDER_SORT_BY_KEY = '4399-folder-sort-by'
 const FOLDER_SORT_DIRECTION_KEY = '4399-folder-sort-direction'
+const AI_CAPTCHA_PREFERENCE_KEY = '4399-use-ai-captcha'
 const FOLDER_SORT_BY_VALUES = new Set(['createdAt', 'updatedAt', 'name', 'accountCount'])
 const FOLDER_SORT_DIRECTION_VALUES = new Set(['asc', 'desc'])
 const savedFolderSortBy = localStorage.getItem(FOLDER_SORT_BY_KEY)
@@ -230,7 +237,7 @@ const loginLoading = ref(false)
 const loginForm = ref({username: '', password: ''})
 const saveLoginPassword = ref(false)
 const loginApiKey = ref('')
-const manualCaptcha = ref(false)
+const loginUseAi = ref(localStorage.getItem(AI_CAPTCHA_PREFERENCE_KEY) === 'true')
 const showCaptchaInput = ref(false)
 const loginCaptcha = ref('')
 const loginSessionId = ref('')
@@ -342,6 +349,23 @@ async function saveLoginApiKey() {
   ElMessage.success('API Key 已保存')
 }
 
+function saveAiCaptchaPreference(value) {
+  localStorage.setItem(AI_CAPTCHA_PREFERENCE_KEY, value === true ? 'true' : 'false')
+}
+
+async function saveRecordPasswordApiKey(apiKey, done = () => {}) {
+  const normalizedApiKey = apiKey.trim()
+  if (!normalizedApiKey) {
+    ElMessage.warning('请输入 API Key')
+    done(false)
+    return
+  }
+  await FolderManager.saveApiKey(normalizedApiKey)
+  loginApiKey.value = normalizedApiKey
+  ElMessage.success('API Key 已保存')
+  done(true)
+}
+
 async function handleLogin() {
   if (!loginForm.value.username || !loginForm.value.password) {
     ElMessage.warning('请输入账号和密码')
@@ -353,13 +377,12 @@ async function handleLogin() {
 
   // 第一次尝试登录
   const result = await login(loginForm.value.username, loginForm.value.password, {
-    apiKey: manualCaptcha.value ? '' : loginApiKey.value.trim(),
-    captchaText: manualCaptcha.value ? '' : ''
+    apiKey: loginUseAi.value ? loginApiKey.value.trim() : ''
   })
 
   // 需要验证码
   if (result.needCaptcha) {
-    if (manualCaptcha.value) {
+    if (!loginUseAi.value) {
       // 手动模式：显示验证码输入框和图片
       loginSessionId.value = result.sessionId
       captchaImageUrl.value = `https://ptlogin.4399.com/ptlogin/captcha.do?captchaId=${result.sessionId}`
@@ -700,41 +723,54 @@ async function copyPassword(puser) {
   }
 }
 
-async function recordPassword(puser, password, done = () => {}) {
+async function recordPassword(puser, options, done = () => {}) {
   const account = accounts.value[puser]
   if (!account || account.password) {
     ElMessage.error(account ? '该账号已经保存密码' : '账号不存在')
-    done(false)
+    done({success: false})
     return
   }
 
+  const {password, useAi, apiKey, sessionId, captchaText} = options
   try {
-    const result = await login(account.username, password, {apiKey: loginApiKey.value.trim()})
+    const result = sessionId && captchaText
+        ? await loginWithCaptcha(account.username, password, sessionId, captchaText)
+        : await login(account.username, password, {apiKey: useAi ? apiKey.trim() : ''})
     if (!result.success) {
-      ElMessage.error(result.needCaptcha ? '登录验证需要验证码，密码未保存' : result.message || '登录验证失败')
-      done(false)
+      if (result.needCaptcha) {
+        if (useAi) {
+          ElMessage.error('需要验证码但未配置 API Key')
+          done({success: false})
+        } else {
+          ElMessage.info('请输入验证码后再次验证')
+          done({success: false, needCaptcha: true, sessionId: result.sessionId})
+        }
+        return
+      }
+      ElMessage.error(result.message || '登录验证失败')
+      done({success: false})
       return
     }
 
     const loginPuser = result.cookies?.find(cookie => cookie.name === 'Puser')?.value
     if (!loginPuser || loginPuser !== puser) {
       ElMessage.error('登录成功的账号与当前账号不一致，密码未保存')
-      done(false)
+      done({success: false})
       return
     }
 
     if (!await FolderManager.setAccountPassword(puser, password)) {
       ElMessage.error('账号不存在，密码保存失败')
-      done(false)
+      done({success: false})
       return
     }
 
     ElMessage.success('密码验证成功并已保存')
     await refreshData()
-    done(true)
+    done({success: true})
   } catch (error) {
     ElMessage.error(error.message || '密码验证失败')
-    done(false)
+    done({success: false})
   }
 }
 
