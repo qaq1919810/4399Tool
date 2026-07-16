@@ -16,23 +16,6 @@
     "file": "assets/_plugin-vue_export-helper-CNpL_Sag.css",
     "src": "__plugin-vue_export-helper-CNpL_Sag.css"
   },
-  "_css-BFqbfNqC.js": {
-    "file": "assets/css-BFqbfNqC.js",
-    "name": "css",
-    "imports": [
-      "__plugin-vue_export-helper-B0tuXPLz.js",
-      "_focus-trap-fg77Bfob.js",
-      "_numbers-BN-2-2-A.js",
-      "_overlay-Dj7tOmxf.js"
-    ],
-    "css": [
-      "assets/css-By3Ml4al.css"
-    ]
-  },
-  "_css-By3Ml4al.css": {
-    "file": "assets/css-By3Ml4al.css",
-    "src": "_css-By3Ml4al.css"
-  },
   "_css-DOOE-_km.css": {
     "file": "assets/css-DOOE-_km.css",
     "src": "_css-DOOE-_km.css"
@@ -76,6 +59,23 @@
       "__plugin-vue_export-helper-B0tuXPLz.js",
       "_shadowFetch-kABWPzq7.js"
     ]
+  },
+  "_notify-CjAKoovu.js": {
+    "file": "assets/notify-CjAKoovu.js",
+    "name": "notify",
+    "imports": [
+      "__plugin-vue_export-helper-B0tuXPLz.js",
+      "_focus-trap-fg77Bfob.js",
+      "_numbers-BN-2-2-A.js",
+      "_overlay-Dj7tOmxf.js"
+    ],
+    "css": [
+      "assets/notify-DK8rqXyz.css"
+    ]
+  },
+  "_notify-DK8rqXyz.css": {
+    "file": "assets/notify-DK8rqXyz.css",
+    "src": "_notify-DK8rqXyz.css"
   },
   "_numbers-BN-2-2-A.js": {
     "file": "assets/numbers-BN-2-2-A.js",
@@ -130,7 +130,7 @@
     "isEntry": true
   },
   "src/html/popup/backup/index.html": {
-    "file": "assets/src\\html\\popup\\backup\\index-CeM72m2I.js",
+    "file": "assets/src\\html\\popup\\backup\\index-Bzhr4TPt.js",
     "name": "src\\html\\popup\\backup\\index",
     "src": "src/html/popup/backup/index.html",
     "isEntry": true,
@@ -138,11 +138,11 @@
       "__plugin-vue_export-helper-B0tuXPLz.js",
       "_focus-trap-fg77Bfob.js",
       "_numbers-BN-2-2-A.js",
-      "_css-BFqbfNqC.js",
+      "_notify-CjAKoovu.js",
       "_folderManager-BykC2-Y_.js"
     ],
     "css": [
-      "assets/index-CI17u_UN.css"
+      "assets/index-DbQEe8x9.css"
     ]
   },
   "src/html/popup/batchEdit/batch-edit.html": {
@@ -176,7 +176,7 @@
     ]
   },
   "src/html/popup/index/index.html": {
-    "file": "assets/src\\html\\popup\\index\\index-DuKFohl2.js",
+    "file": "assets/src\\html\\popup\\index\\index-etwsmaut.js",
     "name": "src\\html\\popup\\index\\index",
     "src": "src/html/popup/index/index.html",
     "isEntry": true,
@@ -186,14 +186,14 @@
       "_focus-trap-fg77Bfob.js",
       "_numbers-BN-2-2-A.js",
       "_input-CM38CBkZ.js",
+      "_notify-CjAKoovu.js",
       "_shadowFetch-kABWPzq7.js",
       "_windowManager-0wM4gxEF.js",
-      "_css-BFqbfNqC.js",
       "_folderManager-BykC2-Y_.js",
       "_login-DDxtQTdK.js"
     ],
     "css": [
-      "assets/index-Uwgku8Dn.css"
+      "assets/index-DF6tOzjC.css"
     ]
   },
   "src/html/popup/settings/index.html": {

@@ -19,6 +19,9 @@
       <el-button size="small" type="primary" @click.stop="handleSwitch" :loading="switching">
         切换
       </el-button>
+      <el-button size="small" class="query-toggle" @click.stop="showGameQuery = !showGameQuery">
+        {{ showGameQuery ? '收起查询' : '游戏查询' }}
+      </el-button>
       <el-dropdown @command="handleCommand" trigger="click">
         <el-button size="default" text type="info" class="more-btn">⋮</el-button>
         <template #dropdown>
@@ -56,6 +59,64 @@
         </div>
       </div>
     </el-popover>
+
+    <section v-if="showGameQuery" class="game-query-panel">
+      <div class="query-heading">
+        <div>
+          <strong>游戏区服查询</strong>
+          <span>使用账号 {{ user.username }} 的登录信息</span>
+        </div>
+        <el-tag size="small" type="info">间隔查询</el-tag>
+      </div>
+
+      <el-alert
+          class="query-timing-alert"
+          title="理论上每 3 秒以上可查询一个区服，多选时需要较长时间；最长等待时间按所选区服数量动态计算。"
+          type="warning"
+          :closable="false"
+          show-icon
+      />
+
+      <el-input
+          v-model="gamePath"
+          size="small"
+          placeholder="输入游戏缩写，例如 ssjj"
+          clearable
+          @keyup.enter="loadGameServers"
+      >
+        <template #prepend>/zhuanti/</template>
+        <template #append>
+          <el-button :loading="loadingServers" @click="loadGameServers">加载区服</el-button>
+        </template>
+      </el-input>
+
+      <div v-if="serverOptions.length" class="server-selection">
+        <el-checkbox
+            :model-value="allServersSelected"
+            :indeterminate="someServersSelected"
+            @change="toggleAllServers"
+        >
+          全选
+        </el-checkbox>
+        <el-checkbox-group v-model="selectedServerIds" class="server-grid">
+          <el-checkbox v-for="server in serverOptions" :key="server.sid" :value="server.sid">
+            {{ server.sid }} · {{ server.name }}
+          </el-checkbox>
+        </el-checkbox-group>
+      </div>
+      <p v-else class="server-load-hint">输入游戏缩写并加载后，将显示该游戏实际提供的区服。</p>
+
+      <el-button
+          type="primary"
+          size="small"
+          class="query-button"
+          :loading="queryingGames"
+          :disabled="serverOptions.length === 0"
+          @click="handleGameQuery"
+      >
+        查询所选 {{ selectedServerIds.length }} 个区服
+      </el-button>
+    </section>
 
     <!-- 编辑表单 -->
     <div v-if="showEditForm" class="edit-form">
@@ -130,13 +191,67 @@
       </el-button>
     </div>
   </div>
+
+  <el-dialog
+      v-model="showQueryResults"
+      :title="`${user.username} 的游戏区服查询结果`"
+      width="80%"
+      append-to-body
+      :modal="true"
+      :close-on-click-modal="false"
+      :close-on-press-escape="false"
+  >
+    <div v-if="queryResult" class="query-results">
+      <div class="query-summary">
+        <span>已选 <b>{{ queryResult.selectedCount }}</b></span>
+        <span class="summary-success">成功 <b>{{ queryResult.successCount }}</b></span>
+        <span class="summary-failure">失败 <b>{{ queryResult.failureCount }}</b></span>
+        <span>角色 <b>{{ queryResult.roles.length }}</b></span>
+      </div>
+
+      <div v-if="queryResult.roles.length" class="role-list">
+        <article v-for="(role, index) in queryResult.roles" :key="`${role.sid}-${role.roleName}-${index}`" class="role-row">
+          <span class="server-badge">{{ role.sid }}区</span>
+          <div class="role-main">
+            <strong>{{ role.servName || `${role.sid}区` }} · {{ role.roleName || '未知角色' }}</strong>
+            <small>等级 {{ role.level ?? '未知' }} · {{ Number(role.isBan) === 0 ? '状态正常' : '已封禁' }}</small>
+          </div>
+          <el-button
+              v-if="role.gameLink"
+              type="primary"
+              size="small"
+              :loading="enteringGameLink === role.gameLink"
+              :disabled="Boolean(enteringGameLink) && enteringGameLink !== role.gameLink"
+              @click="enterGameAsAccount(role.gameLink)"
+          >
+            以账号身份进入
+          </el-button>
+        </article>
+      </div>
+      <p v-else class="result-empty">所选区服均未查询到角色信息</p>
+
+      <p v-if="queryResult.emptyServerIds.length" class="result-note">
+        {{ formatServerIds(queryResult.emptyServerIds) }}区没有账号信息
+      </p>
+      <div v-if="queryResult.failures.length" class="failure-list">
+        <p v-for="failure in queryResult.failures" :key="failure.sid">
+          {{ failure.sid }}区查询失败：{{ failure.message }}
+        </p>
+      </div>
+    </div>
+    <template #footer>
+      <el-button @click="showQueryResults = false">关闭</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup>
 import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import {shadowFetch} from '#utils/shadowFetch.mjs'
 import {modifyProfileAndAvatar} from '#features/modifyUserInfo.mjs'
+import {getGameServerOptions, queryGameServers} from '#features/queryGameServers.mjs'
 import {getRegionData} from '#utils/regionData.mjs'
+import {systemNotification} from '#utils/notify.mjs'
 
 const props = defineProps({
   user: Object,
@@ -152,6 +267,16 @@ const showMovePopover = ref(false)
 const moveTrigger = ref(null)
 const saving = ref(false)
 const avatarUploadRef = ref(null)
+const showGameQuery = ref(false)
+const gamePath = ref('')
+const serverOptions = ref([])
+const loadedGamePath = ref('')
+const loadingServers = ref(false)
+const selectedServerIds = ref([])
+const queryingGames = ref(false)
+const queryResult = ref(null)
+const showQueryResults = ref(false)
+const enteringGameLink = ref('')
 
 const avatarUrl = ref('https://via.placeholder.com/48')
 const avatarObjectUrl = ref('')
@@ -174,6 +299,81 @@ const cityMap = ref({})
 const cityOptions = computed(() => {
   return editForm.value.province ? (cityMap.value[editForm.value.province] || []) : []
 })
+const allServersSelected = computed(() =>
+    serverOptions.value.length > 0 && selectedServerIds.value.length === serverOptions.value.length
+)
+const someServersSelected = computed(() =>
+    selectedServerIds.value.length > 0 && !allServersSelected.value
+)
+
+function toggleAllServers() {
+  selectedServerIds.value = allServersSelected.value ? [] : serverOptions.value.map(server => server.sid)
+}
+
+watch(gamePath, value => {
+  if (value.trim() === loadedGamePath.value) return
+  serverOptions.value = []
+  selectedServerIds.value = []
+  loadedGamePath.value = ''
+})
+
+async function loadGameServers() {
+  if (!props.user.cookies?.length) {
+    ElMessage.error('该账号没有可用 Cookie')
+    return
+  }
+
+  loadingServers.value = true
+  try {
+    const normalizedGamePath = gamePath.value.trim()
+    const servers = await getGameServerOptions(normalizedGamePath, props.user.cookies)
+    serverOptions.value = servers
+    selectedServerIds.value = []
+    loadedGamePath.value = normalizedGamePath
+  } catch (error) {
+    serverOptions.value = []
+    selectedServerIds.value = []
+    loadedGamePath.value = ''
+    ElMessage.error(error.message || '加载区服失败')
+  } finally {
+    loadingServers.value = false
+  }
+}
+
+function formatServerIds(ids) {
+  return ids.join('、')
+}
+
+async function handleGameQuery() {
+  if (!props.user.cookies?.length) {
+    ElMessage.error('该账号没有可用 Cookie')
+    return
+  }
+  if (!serverOptions.value.length || gamePath.value.trim() !== loadedGamePath.value) {
+    ElMessage.warning('请先加载当前游戏的区服列表')
+    return
+  }
+
+  queryingGames.value = true
+  queryResult.value = null
+  try {
+    const result = await queryGameServers(gamePath.value, selectedServerIds.value, props.user.cookies)
+    queryResult.value = result
+    showQueryResults.value = true
+    try {
+      await systemNotification(
+          `选择 ${result.selectedCount} 个区服，成功 ${result.successCount} 个，失败 ${result.failureCount} 个`,
+          `${props.user.username} 区服查询完成`
+      )
+    } catch (notificationError) {
+      console.error('[4399管家] 区服查询完成通知发送失败:', notificationError)
+    }
+  } catch (error) {
+    ElMessage.error(error.message || '区服查询失败')
+  } finally {
+    queryingGames.value = false
+  }
+}
 
 function replaceAvatarObjectUrl(blob) {
   if (avatarObjectUrl.value) {
@@ -220,29 +420,32 @@ onMounted(async () => {
   }
 })
 
+async function applyAccountCookies() {
+  const {cookies} = props.user
+  if (!cookies || cookies.length === 0) throw new Error('该账号没有可用 Cookie')
+
+  for (const cookie of cookies) {
+    const path = cookie.path || '/'
+    const setDetails = {
+      url: `https://u.4399.com${path}`,
+      name: cookie.name,
+      value: cookie.value,
+      path,
+      secure: Boolean(cookie.secure),
+      httpOnly: Boolean(cookie.httpOnly)
+    }
+    if (!cookie.session && cookie.expirationDate !== undefined) {
+      setDetails.expirationDate = cookie.expirationDate
+    }
+    if (!cookie.hostOnly && cookie.domain) setDetails.domain = cookie.domain
+    await chrome.cookies.set(setDetails)
+  }
+}
+
 async function handleSwitch() {
   switching.value = true
   try {
-    const {cookies} = props.user
-    if (!cookies || cookies.length === 0) {
-      ElMessage.error('无可用 Cookie')
-      switching.value = false
-      return
-    }
-
-    for (const ck of cookies) {
-      const setDetails = {
-        url: 'https://u.4399.com' + ck.path,
-        name: ck.name,
-        value: ck.value,
-        path: ck.path,
-        secure: ck.secure,
-        httpOnly: ck.httpOnly,
-        expirationDate: ck.session ? undefined : ck.expirationDate
-      }
-      if (!ck.hostOnly) setDetails.domain = ck.domain
-      await chrome.cookies.set(setDetails)
-    }
+    await applyAccountCookies()
 
     chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
       const tab = tabs[0]
@@ -255,6 +458,29 @@ async function handleSwitch() {
     ElMessage.error('切换失败')
   }
   switching.value = false
+}
+
+async function enterGameAsAccount(gameLink) {
+  let parsedUrl
+  try {
+    parsedUrl = new URL(gameLink)
+    if (parsedUrl.protocol !== 'https:' || !parsedUrl.hostname.endsWith('4399.com')) {
+      throw new Error('游戏链接无效')
+    }
+  } catch {
+    ElMessage.error('游戏链接无效')
+    return
+  }
+
+  enteringGameLink.value = gameLink
+  try {
+    await applyAccountCookies()
+    await chrome.tabs.create({url: parsedUrl.toString()})
+  } catch (error) {
+    ElMessage.error(error.message || '切换账号并进入游戏失败')
+  } finally {
+    enteringGameLink.value = ''
+  }
 }
 
 function handleCommand(cmd) {
@@ -322,6 +548,7 @@ async function handleSaveEdit() {
 <style scoped>
 .account-card {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: 10px;
   padding: 10px;
@@ -384,6 +611,149 @@ async function handleSaveEdit() {
   height: 32px;
   background-color: #f0f0f0;
 }
+
+.query-toggle {
+  margin-left: 0;
+}
+
+.game-query-panel {
+  width: 100%;
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px solid #d9ecff;
+  border-radius: 8px;
+  background: linear-gradient(145deg, #f8fbff, #f3f8ff);
+}
+
+.query-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.query-heading strong {
+  display: block;
+  color: #303133;
+  font-size: 13px;
+}
+
+.query-heading span {
+  display: block;
+  margin-top: 2px;
+  color: #909399;
+  font-size: 11px;
+}
+
+.server-selection {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: 1px solid #e4e7ed;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.server-load-hint {
+  margin: 10px 0 0;
+  padding: 9px;
+  border: 1px dashed #dcdfe6;
+  border-radius: 6px;
+  color: #909399;
+  font-size: 11px;
+  text-align: center;
+}
+
+.query-timing-alert {
+  margin-bottom: 10px;
+}
+
+.query-timing-alert :deep(.el-alert__title) {
+  line-height: 1.45;
+  font-size: 11px;
+}
+
+.server-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 3px 8px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed #dcdfe6;
+}
+
+.server-grid :deep(.el-checkbox) {
+  margin-right: 0;
+}
+
+.query-button {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.query-results {
+  max-height: 65vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.query-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.query-summary span {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #eef2f6;
+  color: #606266;
+  font-size: 11px;
+}
+
+.query-summary .summary-success { background: #e9f7ef; color: #529b2e; }
+.query-summary .summary-failure { background: #fef0f0; color: #f56c6c; }
+
+.role-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.role-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.server-badge {
+  flex-shrink: 0;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: #409eff;
+  color: #fff;
+  font-size: 11px;
+}
+
+.role-main { flex: 1; min-width: 0; }
+.role-main strong, .role-main small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.role-main strong { color: #303133; font-size: 12px; }
+.role-main small { margin-top: 2px; color: #909399; font-size: 11px; }
+
+.result-empty, .result-note, .failure-list {
+  margin: 7px 0 0;
+  padding: 7px 9px;
+  border-radius: 5px;
+  font-size: 11px;
+}
+
+.result-empty, .result-note { background: #f4f4f5; color: #606266; }
+.failure-list { background: #fef0f0; color: #f56c6c; }
+.failure-list p { margin: 2px 0; }
 
 .edit-form {
   width: 100%;
