@@ -170,6 +170,17 @@
         <el-form-item label="保存密码">
           <el-checkbox v-model="saveLoginPassword">保存到插件本地</el-checkbox>
         </el-form-item>
+        <el-form-item label="保存位置">
+          <el-select v-model="loginTargetFolderId" placeholder="选择保存位置" style="width: 100%">
+            <el-option :value="null" label="📄 根层"/>
+            <el-option
+                v-for="folder in flatFolders"
+                :key="folder.id"
+                :value="folder.id"
+                :label="'📂 ' + folder.path"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item v-if="loginUseAi" label="API Key">
           <div style="display: flex; gap: 8px; width: 100%">
             <el-input v-model="loginApiKey" type="password" placeholder="Gemini API Key（可选）" show-password
@@ -238,6 +249,7 @@ const loginForm = ref({username: '', password: ''})
 const saveLoginPassword = ref(false)
 const loginApiKey = ref('')
 const loginUseAi = ref(localStorage.getItem(AI_CAPTCHA_PREFERENCE_KEY) === 'true')
+const loginTargetFolderId = ref(null)
 const showCaptchaInput = ref(false)
 const loginCaptcha = ref('')
 const loginSessionId = ref('')
@@ -463,15 +475,17 @@ async function saveLoginResult(result) {
     ...(userInfo || {}),
     puser,
     cookies: savedCookies,
+    parentFolderId: loginTargetFolderId.value,
     email: modifyInfo?.email || '',
     qq: modifyInfo?.qq || '',
     ...(saveLoginPassword.value ? {password: encryptPassword(loginForm.value.password)} : {})
-  })
+  }, false)
 
   loginLoading.value = false
   ElMessage.success('登录成功！账号已保存')
   showLoginDialog.value = false
   loginForm.value = {username: '', password: ''}
+  loginTargetFolderId.value = null
   saveLoginPassword.value = false
   loginCaptcha.value = ''
   showCaptchaInput.value = false
